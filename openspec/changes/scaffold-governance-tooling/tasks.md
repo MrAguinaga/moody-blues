@@ -2,9 +2,9 @@
 
 ## 1. Documentation & SDD Setup
 
-- [ ] 1.1 Update `README.md` to indicate that OpenSpec tooling is required to work on this repository.
-- [ ] 1.2 Update `AGENTS.md` to define initial agent governance rules and repository conventions.
-- [ ] 1.3 Update the existing `openspec/config.yaml` to include the Pragmatic SDD rule in the context.
+- [x] 1.1 Update `README.md` to indicate that OpenSpec tooling is required to work on this repository.
+- [x] 1.2 Update `AGENTS.md` to define initial agent governance rules and repository conventions.
+- [x] 1.3 Update the existing `openspec/config.yaml` to include the Pragmatic SDD rule in the context.
 
 ## 2. Monorepo Initialization
 
