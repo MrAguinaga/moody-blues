@@ -13,7 +13,7 @@
 
 ## 3. Governance Configuration
 
-- [ ] 3.1 Add `Husky`, `commitlint` (`@commitlint/config-conventional`), `prettier`, and `lint-staged` as `devDependencies` via `pnpm`.
-- [ ] 3.2 Configure `commitlint.config.js` to strictly extend `@commitlint/config-conventional`.
-- [ ] 3.3 Configure `.husky/commit-msg` to run `commitlint`.
-- [ ] 3.4 Configure `.husky/pre-commit` to run `lint-staged`.
+- [x] 3.1 Add `Husky`, `commitlint` (`@commitlint/config-conventional`), `prettier`, and `lint-staged` as `devDependencies` via `pnpm`.
+- [x] 3.2 Configure `commitlint.config.js` to strictly extend `@commitlint/config-conventional`.
+- [x] 3.3 Configure `.husky/commit-msg` to run `commitlint`.
+- [x] 3.4 Configure `.husky/pre-commit` to run `lint-staged`.

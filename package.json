@@ -5,7 +5,8 @@
   "description": "Personal Streaming Server Project.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky"
   },
   "keywords": [],
   "author": "",
@@ -18,5 +19,15 @@
     }
   },
   "packageManager": "pnpm@12.6.0",
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.5.1",
+    "prettier": "^3.9.9"
+  },
+  "lint-staged": {
+    "*.{js,ts,json,md,yaml,yml}": "prettier --write"
+  }
 }
