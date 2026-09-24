@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Moody Blues Gateway</title>
+    <style>
+      :root {
+        --bg-color: #0f172a;
+        --card-bg: rgba(30, 41, 59, 0.7);
+        --card-border: #334155;
+        --text-primary: #f8fafc;
+        --text-secondary: #94a3b8;
+        --accent-blue: #38bdf8;
+        --status-green: #22c55e;
+        --status-bg: rgba(34, 197, 94, 0.15);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-primary);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        background-image:
+          radial-gradient(
+            ellipse 80% 80% at 50% -20%,
+            rgba(56, 189, 248, 0.12),
+            transparent
+          ),
+          radial-gradient(
+            ellipse 50% 50% at 50% 120%,
+            rgba(99, 102, 241, 0.08),
+            transparent
+          );
+      }
+
+      .card {
+        background-color: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 1rem;
+        padding: 2.5rem 2rem;
+        max-width: 580px;
+        width: 100%;
+        backdrop-filter: blur(12px);
+        box-shadow:
+          0 20px 25px -5px rgba(0, 0, 0, 0.5),
+          0 8px 10px -6px rgba(0, 0, 0, 0.4);
+        text-align: center;
+      }
+
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background-color: var(--status-bg);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: var(--status-green);
+        padding: 0.4rem 0.9rem;
+        border-radius: 9999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 0.025em;
+        margin-bottom: 1.5rem;
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: var(--status-green);
+        box-shadow: 0 0 8px var(--status-green);
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+
+      h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin-bottom: 0.75rem;
+        background: linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .subtitle {
+        color: var(--text-secondary);
+        font-size: 1.05rem;
+        line-height: 1.6;
+        margin-bottom: 2rem;
+      }
+
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.85rem;
+        text-align: left;
+      }
+
+      @media (max-width: 480px) {
+        .features-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .feature-item {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(51, 65, 85, 0.8);
+        border-radius: 0.65rem;
+        padding: 0.85rem 1rem;
+      }
+
+      .feature-title {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-secondary);
+        margin-bottom: 0.25rem;
+      }
+
+      .feature-value {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--accent-blue);
+      }
+
+      .footer {
+        margin-top: 2rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid rgba(51, 65, 85, 0.5);
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="status-badge">
+        <span class="status-dot"></span>
+        <span>● Operational / Ingress Active</span>
+      </div>
+      <h1>Moody Blues Gateway</h1>
+      <p class="subtitle">
+        Reverse proxy and automated TLS termination are active and ready to
+        receive application stacks.
+      </p>
+
+      <div class="features-grid">
+        <div class="feature-item">
+          <div class="feature-title">Reverse Proxy</div>
+          <div class="feature-value">Caddy Web Server</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-title">Security &amp; TLS</div>
+          <div class="feature-value">Automated HTTPS</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-title">Network</div>
+          <div class="feature-value">moody-blues-net</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-title">Modular Routes</div>
+          <div class="feature-value">conf.d/*.caddy</div>
+        </div>
+      </div>
+
+      <footer class="footer">
+        Moody Blues &bull; Decoupled Monorepo Architecture
+      </footer>
+    </main>
+  </body>
+</html>

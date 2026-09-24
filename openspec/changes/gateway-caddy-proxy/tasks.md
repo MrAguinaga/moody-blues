@@ -7,6 +7,6 @@
 
 ## 2. Visual Landing Page and Gateway Configuration
 
-- [ ] 2.1 Create modern visual "Hello World" landing page in `compose/gateway/html/index.html` displaying Moody Blues gateway status
-- [ ] 2.2 Create `compose/gateway/Caddyfile` with reusable snippets (`security_headers`, `compression`), static file server for `html` on `{$DOMAIN}`, and `import /etc/caddy/conf.d/*.caddy`
-- [ ] 2.3 Verify compose configuration and Caddyfile syntax
+- [x] 2.1 Create modern visual "Hello World" landing page in `compose/gateway/html/index.html` displaying Moody Blues gateway status
+- [x] 2.2 Create `compose/gateway/Caddyfile` with reusable snippets (`security_headers`, `compression`), static file server for `html` on `{$DOMAIN}`, and `import /etc/caddy/conf.d/*.caddy`
+- [x] 2.3 Verify compose configuration and Caddyfile syntax

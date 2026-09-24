@@ -21,7 +21,7 @@ See `proposal.md` for background and motivation.
   - Static root file server for the landing page on `{$DOMAIN}`.
   - Dynamic inclusion directive: `import /etc/caddy/conf.d/*.caddy`.
 - Mount local directory `compose/gateway/conf.d/` into `/etc/caddy/conf.d/`.
-- Provide a clean `.env.example` template declaring `DOMAIN=example.com`.
+- Provide a clean root `.env.example` template declaring `DOMAIN=example.com`.
 
 **Non-Goals:**
 

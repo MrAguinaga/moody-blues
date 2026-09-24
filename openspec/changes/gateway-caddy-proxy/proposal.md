@@ -13,7 +13,7 @@ A secure, modular, and completely service-agnostic ingress layer is required to 
 - Implement reusable Caddy snippets for modern HTTP compression (zstd/gzip) and security headers (HSTS, nosniff, etc.).
 - Mount and serve a clean, modern visual "Hello World" landing page (`compose/gateway/html/index.html`) on `${DOMAIN}` to visually confirm operational readiness.
 - Mount and configure a modular configuration directory (`compose/gateway/conf.d/`) via `import /etc/caddy/conf.d/*.caddy`.
-- Provide a clean `.env.example` template with `DOMAIN=example.com`.
+- Provide a clean `.env.example` template at the repository root with `DOMAIN=example.com`.
 - Define the architectural specification for the gateway capability.
 
 ## Capabilities
