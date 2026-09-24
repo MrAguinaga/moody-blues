@@ -2,8 +2,8 @@
 
 ## 1. Pipeline Definition and Pre-Flight Validation
 
-- [ ] 1.1 Scaffold `.github/workflows/deploy.yml` with triggers for push to `main` and `development`, `workflow_dispatch`, and sequential concurrency control.
-- [ ] 1.2 Implement pre-flight validation job executing `docker compose config` against active stacks in `compose/` to block faulty configurations before SSH connection.
+- [x] 1.1 Scaffold `.github/workflows/deploy.yml` with triggers for push to `main` and `development`, `workflow_dispatch`, and sequential concurrency control.
+- [x] 1.2 Implement pre-flight validation job executing `docker compose config` against active stacks in `compose/` to block faulty configurations before SSH connection.
 
 ## 2. Remote SSH Deployment and Service Orchestration
 
