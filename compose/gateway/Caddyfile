@@ -1,0 +1,23 @@
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+(compression) {
+	encode zstd gzip
+}
+
+{$DOMAIN} {
+	import security_headers
+	import compression
+
+	root * /var/www/html
+	file_server
+}
+
+import /etc/caddy/conf.d/*.caddy

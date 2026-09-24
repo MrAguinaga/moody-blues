@@ -1,0 +1,9 @@
+# Dependencies & outputs
+node_modules/
+dist/
+
+# Configuration files without standard Prettier parsers
+**/Caddyfile
+**/*.caddy
+**/.env*
+**/.gitkeep
