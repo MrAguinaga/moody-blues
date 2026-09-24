@@ -1,0 +1,69 @@
+name: Continuous Deployment
+
+on:
+  push:
+    branches:
+      - main
+      - development
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  pre-flight:
+    name: Pre-Flight Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose syntax
+        run: |
+          DOMAIN="example.com" docker compose -f compose/gateway/docker-compose.yml config --quiet
+
+  deploy:
+    name: Remote SSH Deployment
+    needs: pre-flight
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute remote deployment commands
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -e
+            echo "==> Deploying branch: ${{ github.ref_name }} to /opt/moody-blues"
+            cd /opt/moody-blues
+
+            echo "==> Pulling latest changes from branch ${{ github.ref_name }}..."
+            git fetch origin
+            git checkout ${{ github.ref_name }}
+            git pull origin ${{ github.ref_name }}
+
+            if [ ! -f .env ]; then
+              echo "WARNING: /opt/moody-blues/.env not found, creating from .env.example"
+              cp .env.example .env
+            fi
+
+            echo "==> Ensuring external network moody-blues-net exists..."
+            docker network inspect moody-blues-net >/dev/null 2>&1 || docker network create moody-blues-net
+
+            echo "==> Orchestrating gateway stack..."
+            docker compose -f compose/gateway/docker-compose.yml up -d --remove-orphans
+
+            echo "==> Verifying container status..."
+            sleep 3
+            docker compose -f compose/gateway/docker-compose.yml ps
+
+            STATUS=$(docker inspect --format='{{.State.Status}}' caddy 2>/dev/null || echo "missing")
+            if [ "$STATUS" != "running" ]; then
+              echo "ERROR: Caddy container is not running (status: $STATUS)"
+              exit 1
+            fi
+            echo "==> Deployment verified: Caddy is running."
