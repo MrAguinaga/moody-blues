@@ -2,8 +2,8 @@
 
 ## 1. Directory and Compose Configuration
 
-- [ ] 1.1 Create directory `compose/gateway/`, `compose/gateway/conf.d/` with `.gitkeep`, `compose/gateway/html/`, and `.env.example` defining `DOMAIN=example.com`
-- [ ] 1.2 Create `compose/gateway/docker-compose.yml` declaring `caddy:alpine`, ports 80/443, persistence volumes (`caddy_data`, `caddy_config`), volume mounts for `conf.d` and `html`, and `moody-blues-net` external network
+- [x] 1.1 Create directory `compose/gateway/`, `compose/gateway/conf.d/` with `.gitkeep`, `compose/gateway/html/`, and root `.env.example` defining `DOMAIN=example.com`
+- [x] 1.2 Create `compose/gateway/docker-compose.yml` declaring `caddy:alpine`, ports 80/443, persistence volumes (`caddy_data`, `caddy_config`), volume mounts for `conf.d` and `html`, and `moody-blues-net` external network
 
 ## 2. Visual Landing Page and Gateway Configuration
 
