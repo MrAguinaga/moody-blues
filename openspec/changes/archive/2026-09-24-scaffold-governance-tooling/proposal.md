@@ -14,9 +14,11 @@ This change initializes the foundation and local governance tooling for the `moo
 ## Capabilities
 
 ### New Capabilities
+
 None.
 
 ### Modified Capabilities
+
 None.
 
 ## Impact
