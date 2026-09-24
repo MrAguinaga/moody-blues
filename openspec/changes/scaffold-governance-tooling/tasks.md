@@ -8,8 +8,8 @@
 
 ## 2. Monorepo Initialization
 
-- [ ] 2.1 Initialize `package.json` with `pnpm` as package manager.
-- [ ] 2.2 Create `pnpm-workspace.yaml` declaring `compose/*` and `packages/*` as workspace packages.
+- [x] 2.1 Initialize `package.json` with `pnpm` as package manager.
+- [x] 2.2 Create `pnpm-workspace.yaml` declaring `compose/*` and `packages/*` as workspace packages.
 
 ## 3. Governance Configuration
 
