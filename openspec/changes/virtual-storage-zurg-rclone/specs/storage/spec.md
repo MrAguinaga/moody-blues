@@ -62,3 +62,19 @@ The storage subsystem SHALL continuously verify the health of the WebDAV connect
 
 - **WHEN** external network connectivity to Real-Debrid drops and resumes
 - **THEN** the storage subsystem re-establishes the WebDAV session without requiring manual container restarts
+
+---
+
+### Requirement: Automated CI/CD Deployment Orchestration
+
+The deployment pipeline SHALL validate Docker Compose syntax for the storage stack during pre-flight checks and orchestrate container deployment with host directory initialization on the target VPS.
+
+#### Scenario: Pre-flight syntax validation
+
+- **WHEN** a pull request or push occurs on deployment branches
+- **THEN** CI validates `compose/storage/docker-compose.yml` against environment templates before initiating SSH connections
+
+#### Scenario: Remote host deployment
+
+- **WHEN** deployment executes on the VPS host
+- **THEN** the pipeline ensures `/mnt/media` exists, deploys the storage containers, and confirms they are in running state

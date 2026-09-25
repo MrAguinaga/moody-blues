@@ -52,6 +52,14 @@ See `proposal.md` for problem background and motivation.
 - **Choice:** Centralize configuration in root `.env.example` with `RD_API_TOKEN`, `MEDIA_MOUNT_PATH=/mnt/media`, `PUID=1000`, `PGID=1000`. In `compose/storage/config.yml`, reference the token dynamically.
 - **Rationale:** Maintains 100% portability without committing secrets or assuming fixed system usernames.
 
+### Decision 5: CI/CD Pipeline Integration and Deployment Orchestration
+
+- **Choice:** Extend `.github/workflows/deploy.yml` with:
+  1. Pre-flight Docker Compose validation of `compose/storage/docker-compose.yml` using `.env.example`.
+  2. Remote SSH execution ensuring `/mnt/media` directory creation on the host and orchestrating `docker compose -f compose/storage/docker-compose.yml up -d --remove-orphans`.
+  3. Status inspection verifying `zurg` and `rclone` containers are running.
+- **Rationale:** Prevents configuration drift and ensures the virtual storage stack is deployed automatically alongside the gateway upon merge to `development` or `main`.
+
 ## Risks / Trade-offs
 
 - **[Host SSD Exhaustion]** → _Mitigation:_ `--vfs-cache-max-size 10G` limits cache footprint; cache automatically evicts oldest chunks when threshold is reached.

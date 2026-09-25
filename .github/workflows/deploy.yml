@@ -22,6 +22,7 @@ jobs:
       - name: Validate Docker Compose syntax
         run: |
           DOMAIN="example.com" docker compose -f compose/gateway/docker-compose.yml config --quiet
+          docker compose --env-file .env.example -f compose/storage/docker-compose.yml config --quiet
 
   deploy:
     name: Remote SSH Deployment
@@ -59,19 +60,70 @@ jobs:
               cp .env.example .env
             fi
 
+            echo "==> Ensuring storage defaults exist in .env..."
+            for var in RD_API_TOKEN MEDIA_MOUNT_PATH PUID PGID; do
+              if ! grep -q "^${var}=" .env; then
+                echo "==> Appending default ${var} from .env.example to .env..."
+                grep "^${var}=" .env.example >> .env || true
+              fi
+            done
+
+            MEDIA_MOUNT_PATH=$(grep -E '^MEDIA_MOUNT_PATH=' .env | head -n 1 | cut -d '=' -f2- | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//" || true)
+            echo "==> Ensuring host media mount directory exists: ${MEDIA_MOUNT_PATH:-/mnt/media}..."
+            mkdir -p "${MEDIA_MOUNT_PATH:-/mnt/media}"
+
             echo "==> Ensuring external network moody-blues-net exists..."
             docker network inspect moody-blues-net >/dev/null 2>&1 || docker network create moody-blues-net
 
             echo "==> Orchestrating gateway stack..."
             docker compose --env-file .env -f compose/gateway/docker-compose.yml up -d --remove-orphans
 
+            echo "==> Orchestrating storage stack..."
+            docker compose --env-file .env -f compose/storage/docker-compose.yml up -d --remove-orphans
+
             echo "==> Verifying container status..."
             sleep 3
             docker compose --env-file .env -f compose/gateway/docker-compose.yml ps
+            docker compose --env-file .env -f compose/storage/docker-compose.yml ps
 
-            STATUS=$(docker inspect --format='{{.State.Status}}' caddy 2>/dev/null || echo "missing")
-            if [ "$STATUS" != "running" ]; then
-              echo "ERROR: Caddy container is not running (status: $STATUS)"
+            CADDY_STATUS=$(docker inspect --format='{{.State.Status}}' caddy 2>/dev/null || echo "missing")
+            if [ "$CADDY_STATUS" != "running" ]; then
+              echo "ERROR: Caddy container is not running (status: $CADDY_STATUS)"
+              docker logs --tail 50 caddy 2>/dev/null || true
               exit 1
             fi
-            echo "==> Deployment verified: Caddy is running."
+            echo "==> Gateway verified: Caddy is running."
+
+            RD_TOKEN=$(grep -E '^RD_API_TOKEN=' .env | head -n 1 | cut -d '=' -f2- | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//" || true)
+            if [ -n "$RD_TOKEN" ] && [ "$RD_TOKEN" != "your-real-debrid-api-token" ]; then
+              echo "==> RD_API_TOKEN is configured. Waiting for zurg and rclone to reach running state..."
+              TIMEOUT=60
+              while [ $TIMEOUT -gt 0 ]; do
+                ZURG_STATUS=$(docker inspect --format='{{.State.Status}}' zurg 2>/dev/null || echo "missing")
+                RCLONE_STATUS=$(docker inspect --format='{{.State.Status}}' rclone 2>/dev/null || echo "missing")
+                if [ "$ZURG_STATUS" = "running" ] && [ "$RCLONE_STATUS" = "running" ]; then
+                  break
+                fi
+                sleep 2
+                TIMEOUT=$((TIMEOUT - 2))
+              done
+
+              ZURG_STATUS=$(docker inspect --format='{{.State.Status}}' zurg 2>/dev/null || echo "missing")
+              if [ "$ZURG_STATUS" != "running" ]; then
+                echo "ERROR: Zurg container is not running (status: $ZURG_STATUS)"
+                docker logs --tail 50 zurg 2>/dev/null || true
+                exit 1
+              fi
+
+              RCLONE_STATUS=$(docker inspect --format='{{.State.Status}}' rclone 2>/dev/null || echo "missing")
+              if [ "$RCLONE_STATUS" != "running" ]; then
+                echo "ERROR: Rclone container is not running (status: $RCLONE_STATUS)"
+                docker logs --tail 50 rclone 2>/dev/null || true
+                exit 1
+              fi
+              echo "==> Storage verified: Zurg and Rclone are running."
+            else
+              echo "==> RD_API_TOKEN is unconfigured or set to placeholder; skipping strict running check for zurg and rclone."
+            fi
+
+            echo "==> Deployment successfully verified."

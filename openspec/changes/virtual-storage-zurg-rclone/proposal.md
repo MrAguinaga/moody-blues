@@ -21,6 +21,7 @@ To support high-concurrency streaming for ~30 users without massive physical dis
   - `MEDIA_MOUNT_PATH`: Host directory path for the virtual media mount (defaults to `/mnt/media`).
   - `PUID` / `PGID`: Permissions identifiers for shared mount read/write access.
 - Enforce strict IP isolation: all requests to Real-Debrid originate exclusively from the deployment host IP.
+- Update `.github/workflows/deploy.yml` with pre-flight syntax validation for the storage stack and automated remote deployment on the VPS host with directory initialization (`/mnt/media`).
 
 ## Capabilities
 
@@ -39,6 +40,7 @@ To support high-concurrency streaming for ~30 users without massive physical dis
   - Adds `compose/storage/config.yml`
   - Adds `compose/storage/rclone.conf`
   - Updates root `.env.example`
+  - Updates `.github/workflows/deploy.yml`
 - **Host Dependencies:**
   - Requires Linux FUSE kernel module (`/dev/fuse`) enabled on the host.
   - Creates host mount point `/mnt/media`.
