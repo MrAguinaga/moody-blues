@@ -74,6 +74,11 @@ jobs:
               grep "JELLYFIN_DOMAIN" .env.example >> .env || true
             fi
 
+            if ! grep -q "JELLYSEERR_DOMAIN" .env; then
+              echo "==> Appending JELLYSEERR_DOMAIN configuration from .env.example to .env..."
+              grep "JELLYSEERR_DOMAIN" .env.example >> .env || true
+            fi
+
             MEDIA_MOUNT_PATH=$(grep -E '^MEDIA_MOUNT_PATH=' .env | head -n 1 | cut -d '=' -f2- | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//" || true)
             echo "==> Ensuring host media mount directory exists: ${MEDIA_MOUNT_PATH:-/mnt/media}..."
             mkdir -p "${MEDIA_MOUNT_PATH:-/mnt/media}" 2>/dev/null || sudo -n mkdir -p "${MEDIA_MOUNT_PATH:-/mnt/media}" 2>/dev/null || true
@@ -97,7 +102,7 @@ jobs:
             docker compose --env-file .env -f compose/stream/docker-compose.yml up -d --remove-orphans
 
             echo "==> Reloading Caddy ingress configuration..."
-            docker compose --env-file .env -f compose/gateway/docker-compose.yml exec -T caddy caddy reload --config /etc/caddy/Caddyfile || true
+            docker compose --env-file .env -f compose/gateway/docker-compose.yml exec -T caddy caddy reload --config /etc/caddy/Caddyfile 2>/dev/null || docker compose --env-file .env -f compose/gateway/docker-compose.yml restart caddy
 
             echo "==> Verifying container status..."
             sleep 3

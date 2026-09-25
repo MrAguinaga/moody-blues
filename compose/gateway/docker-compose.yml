@@ -10,6 +10,7 @@ services:
     environment:
       DOMAIN: ${DOMAIN:-example.com}
       JELLYFIN_DOMAIN: ${JELLYFIN_DOMAIN:-jellyfin.${DOMAIN:-example.com}}
+      JELLYSEERR_DOMAIN: ${JELLYSEERR_DOMAIN:-jellyseerr.${DOMAIN:-example.com}}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./conf.d:/etc/caddy/conf.d:ro
