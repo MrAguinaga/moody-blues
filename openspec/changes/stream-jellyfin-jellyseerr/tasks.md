@@ -9,8 +9,8 @@
 
 ## 2. Stream Stack Orchestration (Jellyfin and Jellyseerr)
 
-- [ ] 2.1 Scaffold `compose/stream/docker-compose.yml` declaring `jellyfin` (`jellyfin/jellyfin:latest`) with read-only media mount `${MEDIA_MOUNT_PATH:-/mnt/media}:/media:ro`, and `jellyseerr` (`fallenbagel/jellyseerr:latest`) on `moody-blues-net` with persistent volumes and healthchecks.
-- [ ] 2.2 Verify syntax and environment interpolation of the stream stack using `docker compose --env-file .env.example -f compose/stream/docker-compose.yml config --quiet`.
+- [x] 2.1 Scaffold `compose/stream/docker-compose.yml` declaring `jellyfin` (`jellyfin/jellyfin:latest`) with read-only media mount `${MEDIA_MOUNT_PATH:-/mnt/media}:/media:ro`, and `jellyseerr` (`fallenbagel/jellyseerr:latest`) on `moody-blues-net` with persistent volumes and healthchecks.
+- [x] 2.2 Verify syntax and environment interpolation of the stream stack using `docker compose --env-file .env.example -f compose/stream/docker-compose.yml config --quiet`.
 
 ## 3. Continuous Deployment Integration
 
