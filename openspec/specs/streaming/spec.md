@@ -38,19 +38,19 @@ The streaming subsystem SHALL expose a user discovery and request portal linked 
 
 ---
 
-### Requirement: Parameterized Ingress Routing with Fallback Domain
+### Requirement: Parameterized Ingress Routing with Dedicated Subdomains
 
-The platform gateway SHALL route public HTTPS requests for the streaming domain configured by `JELLYFIN_DOMAIN` (falling back to `jellyfin.{$DOMAIN}`) to internal services based on request path: `/request*` routes to Jellyseerr on port 5055, and all remaining paths route to Jellyfin on port 8096.
+The platform gateway SHALL route public HTTPS requests for the streaming domain configured by `JELLYFIN_DOMAIN` (falling back to `jellyfin.{$DOMAIN}`) to Jellyfin on port 8096, and requests for the discovery domain configured by `JELLYSEERR_DOMAIN` (falling back to `jellyseerr.{$DOMAIN}`) to Jellyseerr on port 5055.
 
 #### Scenario: Accessing Jellyfin streaming interface with custom or fallback domain
 
 - **WHEN** an HTTPS client visits the streaming domain evaluated from `{$JELLYFIN_DOMAIN}`
 - **THEN** Caddy reverse proxies the request to `jellyfin:8096` with automated TLS termination and security headers
 
-#### Scenario: Accessing Jellyseerr request portal
+#### Scenario: Accessing Jellyseerr discovery and request portal
 
-- **WHEN** an HTTPS client visits `/request` or `/request/*` on the streaming domain
-- **THEN** Caddy strips the `/request` prefix and reverse proxies the request to `jellyseerr:5055`
+- **WHEN** an HTTPS client visits the discovery domain evaluated from `{$JELLYSEERR_DOMAIN}`
+- **THEN** Caddy reverse proxies the request to `jellyseerr:5055` with automated TLS termination and security headers
 
 ---
 

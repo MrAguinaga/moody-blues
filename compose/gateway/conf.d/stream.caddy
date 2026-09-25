@@ -1,14 +1,15 @@
+# Jellyfin (Media Streaming Core)
 {$JELLYFIN_DOMAIN} {
     import security_headers
     import compression
 
-    # Jellyseerr (Discovery & Request Portal)
-    handle_path /request* {
-        reverse_proxy jellyseerr:5055
-    }
+    reverse_proxy jellyfin:8096
+}
 
-    # Jellyfin (Media Streaming Core)
-    handle {
-        reverse_proxy jellyfin:8096
-    }
+# Jellyseerr (Discovery & Request Portal)
+{$JELLYSEERR_DOMAIN} {
+    import security_headers
+    import compression
+
+    reverse_proxy jellyseerr:5055
 }
