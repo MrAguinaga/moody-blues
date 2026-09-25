@@ -11,6 +11,9 @@ services:
       DOMAIN: ${DOMAIN:-example.com}
       JELLYFIN_DOMAIN: ${JELLYFIN_DOMAIN:-jellyfin.${DOMAIN:-example.com}}
       JELLYSEERR_DOMAIN: ${JELLYSEERR_DOMAIN:-jellyseerr.${DOMAIN:-example.com}}
+      SONARR_DOMAIN: ${SONARR_DOMAIN:-sonarr.${DOMAIN:-example.com}}
+      RADARR_DOMAIN: ${RADARR_DOMAIN:-radarr.${DOMAIN:-example.com}}
+      PROWLARR_DOMAIN: ${PROWLARR_DOMAIN:-prowlarr.${DOMAIN:-example.com}}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./conf.d:/etc/caddy/conf.d:ro
