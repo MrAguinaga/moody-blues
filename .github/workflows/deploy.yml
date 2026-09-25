@@ -24,6 +24,7 @@ jobs:
           DOMAIN="example.com" docker compose -f compose/gateway/docker-compose.yml config --quiet
           docker compose --env-file .env.example -f compose/storage/docker-compose.yml config --quiet
           docker compose --env-file .env.example -f compose/stream/docker-compose.yml config --quiet
+          docker compose --env-file .env.example -f compose/automation/docker-compose.yml config --quiet
 
   deploy:
     name: Remote SSH Deployment
@@ -79,6 +80,13 @@ jobs:
               grep "JELLYSEERR_DOMAIN" .env.example >> .env || true
             fi
 
+            for var in SONARR_DOMAIN RADARR_DOMAIN PROWLARR_DOMAIN; do
+              if ! grep -q "^${var}=" .env; then
+                echo "==> Appending ${var} configuration from .env.example to .env..."
+                grep "^${var}=" .env.example >> .env || true
+              fi
+            done
+
             MEDIA_MOUNT_PATH=$(grep -E '^MEDIA_MOUNT_PATH=' .env | head -n 1 | cut -d '=' -f2- | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//" || true)
             echo "==> Ensuring host media mount directory exists: ${MEDIA_MOUNT_PATH:-/mnt/media}..."
             mkdir -p "${MEDIA_MOUNT_PATH:-/mnt/media}" 2>/dev/null || sudo -n mkdir -p "${MEDIA_MOUNT_PATH:-/mnt/media}" 2>/dev/null || true
@@ -101,6 +109,9 @@ jobs:
             echo "==> Orchestrating stream stack..."
             docker compose --env-file .env -f compose/stream/docker-compose.yml up -d --remove-orphans
 
+            echo "==> Orchestrating automation stack..."
+            docker compose --env-file .env -f compose/automation/docker-compose.yml up -d --remove-orphans
+
             echo "==> Reloading Caddy ingress configuration..."
             docker compose --env-file .env -f compose/gateway/docker-compose.yml exec -T caddy caddy reload --config /etc/caddy/Caddyfile 2>/dev/null || docker compose --env-file .env -f compose/gateway/docker-compose.yml restart caddy
 
@@ -109,6 +120,7 @@ jobs:
             docker compose --env-file .env -f compose/gateway/docker-compose.yml ps
             docker compose --env-file .env -f compose/storage/docker-compose.yml ps
             docker compose --env-file .env -f compose/stream/docker-compose.yml ps
+            docker compose --env-file .env -f compose/automation/docker-compose.yml ps
 
             CADDY_STATUS=$(docker inspect --format='{{.State.Status}}' caddy 2>/dev/null || echo "missing")
             if [ "$CADDY_STATUS" != "running" ]; then
@@ -164,5 +176,15 @@ jobs:
               exit 1
             fi
             echo "==> Stream verified: Jellyfin and Jellyseerr are running."
+
+            for service in sonarr radarr prowlarr rdtclient; do
+              SERVICE_STATUS=$(docker inspect --format='{{.State.Status}}' "$service" 2>/dev/null || echo "missing")
+              if [ "$SERVICE_STATUS" != "running" ]; then
+                echo "ERROR: Container $service is not running (status: $SERVICE_STATUS)"
+                docker logs --tail 50 "$service" 2>&1 || true
+                exit 1
+              fi
+            done
+            echo "==> Automation verified: Sonarr, Radarr, Prowlarr, and RDTClient are running."
 
             echo "==> Deployment successfully verified."
