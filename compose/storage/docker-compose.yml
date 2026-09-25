@@ -4,6 +4,7 @@ services:
     container_name: zurg
     restart: unless-stopped
     environment:
+      FORCE_RESTART: "1"
       TOKEN: ${RD_API_TOKEN}
       PORT: 9999
     volumes:
