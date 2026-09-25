@@ -2,10 +2,10 @@
 
 ## 1. Ingress Routing and Environment Configuration
 
-- [ ] 1.1 Document optional `JELLYFIN_DOMAIN` in root `.env.example` under the streaming configuration section.
-- [ ] 1.2 Update `compose/gateway/docker-compose.yml` injecting `JELLYFIN_DOMAIN: ${JELLYFIN_DOMAIN:-jellyfin.${DOMAIN:-example.com}}` into Caddy's environment.
-- [ ] 1.3 Create `compose/gateway/conf.d/stream.caddy` defining ingress `{$JELLYFIN_DOMAIN:jellyfin.{$DOMAIN}}` with `handle_path /request*` proxying to `jellyseerr:5055` and default `handle` proxying to `jellyfin:8096`.
-- [ ] 1.4 Verify formatting and structure of gateway configuration using Prettier.
+- [x] 1.1 Document optional `JELLYFIN_DOMAIN` in root `.env.example` under the streaming configuration section.
+- [x] 1.2 Update `compose/gateway/docker-compose.yml` injecting `JELLYFIN_DOMAIN: ${JELLYFIN_DOMAIN:-jellyfin.${DOMAIN:-example.com}}` into Caddy's environment.
+- [x] 1.3 Create `compose/gateway/conf.d/stream.caddy` defining ingress `{$JELLYFIN_DOMAIN:jellyfin.{$DOMAIN}}` with `handle_path /request*` proxying to `jellyseerr:5055` and default `handle` proxying to `jellyfin:8096`.
+- [x] 1.4 Verify formatting and structure of gateway configuration using Prettier.
 
 ## 2. Stream Stack Orchestration (Jellyfin and Jellyseerr)
 
