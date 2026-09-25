@@ -1,0 +1,23 @@
+# Sonarr (Series & Anime Management)
+{$SONARR_DOMAIN} {
+    import security_headers
+    import compression
+
+    reverse_proxy sonarr:8989
+}
+
+# Radarr (Movie Management)
+{$RADARR_DOMAIN} {
+    import security_headers
+    import compression
+
+    reverse_proxy radarr:7878
+}
+
+# Prowlarr (Indexer & Tracker Proxy)
+{$PROWLARR_DOMAIN} {
+    import security_headers
+    import compression
+
+    reverse_proxy prowlarr:9696
+}
