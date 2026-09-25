@@ -9,6 +9,7 @@ services:
       - "443:443/udp"
     environment:
       DOMAIN: ${DOMAIN:-example.com}
+      JELLYFIN_DOMAIN: ${JELLYFIN_DOMAIN:-jellyfin.${DOMAIN:-example.com}}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./conf.d:/etc/caddy/conf.d:ro
