@@ -12,15 +12,11 @@ services:
     networks:
       - moody-blues-net
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "wget --no-verbose --tries=1 --spider http://127.0.0.1:9999/dav/ || exit 1",
-        ]
-      interval: 15s
+      test: ["CMD", "curl", "-f", "http://localhost:9999/http/version.txt"]
+      interval: 10s
       timeout: 5s
-      retries: 3
-      start_period: 10s
+      retries: 5
+      start_period: 30s
 
   rclone:
     image: rclone/rclone:latest
