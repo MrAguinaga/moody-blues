@@ -14,5 +14,5 @@
 
 ## 3. Continuous Deployment Integration
 
-- [ ] 3.1 Update `.github/workflows/deploy.yml` `pre-flight` job to validate `compose/stream/docker-compose.yml` syntax alongside gateway and storage stacks.
-- [ ] 3.2 Update `.github/workflows/deploy.yml` remote deployment script to synchronize `JELLYFIN_DOMAIN` into `.env`, orchestrate `compose/stream/docker-compose.yml`, reload Caddy configuration (`caddy reload`), and verify running status for `jellyfin` and `jellyseerr`.
+- [x] 3.1 Update `.github/workflows/deploy.yml` `pre-flight` job to validate `compose/stream/docker-compose.yml` syntax alongside gateway and storage stacks.
+- [x] 3.2 Update `.github/workflows/deploy.yml` remote deployment script to synchronize `JELLYFIN_DOMAIN` into `.env`, orchestrate `compose/stream/docker-compose.yml`, reload Caddy configuration (`caddy reload`), and verify running status for `jellyfin` and `jellyseerr`.

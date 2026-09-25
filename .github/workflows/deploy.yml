@@ -23,6 +23,7 @@ jobs:
         run: |
           DOMAIN="example.com" docker compose -f compose/gateway/docker-compose.yml config --quiet
           docker compose --env-file .env.example -f compose/storage/docker-compose.yml config --quiet
+          docker compose --env-file .env.example -f compose/stream/docker-compose.yml config --quiet
 
   deploy:
     name: Remote SSH Deployment
@@ -68,6 +69,11 @@ jobs:
               fi
             done
 
+            if ! grep -q "JELLYFIN_DOMAIN" .env; then
+              echo "==> Appending JELLYFIN_DOMAIN configuration from .env.example to .env..."
+              grep "JELLYFIN_DOMAIN" .env.example >> .env || true
+            fi
+
             MEDIA_MOUNT_PATH=$(grep -E '^MEDIA_MOUNT_PATH=' .env | head -n 1 | cut -d '=' -f2- | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//" || true)
             echo "==> Ensuring host media mount directory exists: ${MEDIA_MOUNT_PATH:-/mnt/media}..."
             mkdir -p "${MEDIA_MOUNT_PATH:-/mnt/media}" 2>/dev/null || sudo -n mkdir -p "${MEDIA_MOUNT_PATH:-/mnt/media}" 2>/dev/null || true
@@ -87,10 +93,17 @@ jobs:
             echo "==> Orchestrating storage stack..."
             docker compose --env-file .env -f compose/storage/docker-compose.yml up -d --remove-orphans
 
+            echo "==> Orchestrating stream stack..."
+            docker compose --env-file .env -f compose/stream/docker-compose.yml up -d --remove-orphans
+
+            echo "==> Reloading Caddy ingress configuration..."
+            docker compose --env-file .env -f compose/gateway/docker-compose.yml exec -T caddy caddy reload --config /etc/caddy/Caddyfile || true
+
             echo "==> Verifying container status..."
             sleep 3
             docker compose --env-file .env -f compose/gateway/docker-compose.yml ps
             docker compose --env-file .env -f compose/storage/docker-compose.yml ps
+            docker compose --env-file .env -f compose/stream/docker-compose.yml ps
 
             CADDY_STATUS=$(docker inspect --format='{{.State.Status}}' caddy 2>/dev/null || echo "missing")
             if [ "$CADDY_STATUS" != "running" ]; then
@@ -131,5 +144,20 @@ jobs:
             else
               echo "==> RD_API_TOKEN is unconfigured or set to placeholder; skipping strict running check for zurg and rclone."
             fi
+
+            JELLYFIN_STATUS=$(docker inspect --format='{{.State.Status}}' jellyfin 2>/dev/null || echo "missing")
+            if [ "$JELLYFIN_STATUS" != "running" ]; then
+              echo "ERROR: Jellyfin container is not running (status: $JELLYFIN_STATUS)"
+              docker logs --tail 50 jellyfin 2>/dev/null || true
+              exit 1
+            fi
+
+            JELLYSEERR_STATUS=$(docker inspect --format='{{.State.Status}}' jellyseerr 2>/dev/null || echo "missing")
+            if [ "$JELLYSEERR_STATUS" != "running" ]; then
+              echo "ERROR: Jellyseerr container is not running (status: $JELLYSEERR_STATUS)"
+              docker logs --tail 50 jellyseerr 2>/dev/null || true
+              exit 1
+            fi
+            echo "==> Stream verified: Jellyfin and Jellyseerr are running."
 
             echo "==> Deployment successfully verified."
