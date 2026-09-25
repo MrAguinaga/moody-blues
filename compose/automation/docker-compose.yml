@@ -61,6 +61,8 @@ services:
   rdtclient:
     image: rogerfar/rdtclient:latest
     container_name: rdtclient
+    ports:
+      - "127.0.0.1:6500:6500"
     restart: unless-stopped
     environment:
       PUID: ${PUID:-1000}
