@@ -38,16 +38,24 @@ jobs:
           script_stop: true
           script: |
             set -e
-            echo "==> Deploying branch: ${{ github.ref_name }} to /opt/moody-blues"
-            cd /opt/moody-blues
+            TARGET_DIR="/opt/moody-blues"
+            TARGET_BRANCH="${{ github.ref_name }}"
+            echo "==> Deploying branch: ${TARGET_BRANCH} to ${TARGET_DIR}"
 
-            echo "==> Pulling latest changes from branch ${{ github.ref_name }}..."
-            git fetch origin
-            git checkout ${{ github.ref_name }}
-            git pull origin ${{ github.ref_name }}
+            if [ ! -d "${TARGET_DIR}/.git" ]; then
+              echo "==> Repository not found. Initializing clone..."
+              git clone -b "${TARGET_BRANCH}" https://github.com/MrAguinaga/moody-blues.git "${TARGET_DIR}"
+            fi
+
+            cd "${TARGET_DIR}"
+
+            echo "==> Syncing latest changes from branch ${TARGET_BRANCH}..."
+            git fetch origin "${TARGET_BRANCH}"
+            git checkout "${TARGET_BRANCH}"
+            git reset --hard "origin/${TARGET_BRANCH}"
 
             if [ ! -f .env ]; then
-              echo "WARNING: /opt/moody-blues/.env not found, creating from .env.example"
+              echo "WARNING: ${TARGET_DIR}/.env not found, creating from .env.example"
               cp .env.example .env
             fi
 
@@ -55,11 +63,11 @@ jobs:
             docker network inspect moody-blues-net >/dev/null 2>&1 || docker network create moody-blues-net
 
             echo "==> Orchestrating gateway stack..."
-            docker compose -f compose/gateway/docker-compose.yml up -d --remove-orphans
+            docker compose --env-file .env -f compose/gateway/docker-compose.yml up -d --remove-orphans
 
             echo "==> Verifying container status..."
             sleep 3
-            docker compose -f compose/gateway/docker-compose.yml ps
+            docker compose --env-file .env -f compose/gateway/docker-compose.yml ps
 
             STATUS=$(docker inspect --format='{{.State.Status}}' caddy 2>/dev/null || echo "missing")
             if [ "$STATUS" != "running" ]; then
