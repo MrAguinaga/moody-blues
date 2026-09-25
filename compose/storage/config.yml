@@ -1,0 +1,17 @@
+zurg: v1
+token: ${RD_API_TOKEN}
+port: 9999
+check_for_changes_every_secs: 15
+api_rate_limit_per_minute: 60
+torrents_rate_limit_per_minute: 25
+concurrent_workers: 32
+enable_repair: true
+ignore_renames: true
+retain_rd_torrent_name: true
+retain_folder_name_extension: true
+
+directories:
+  torrents:
+    group: media
+    filters:
+      - regex: /.*/

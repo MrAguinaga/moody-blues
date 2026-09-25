@@ -1,0 +1,64 @@
+services:
+  zurg:
+    image: ghcr.io/debridmediamanager/zurg-public:latest
+    container_name: zurg
+    restart: unless-stopped
+    environment:
+      TOKEN: ${RD_API_TOKEN}
+      PORT: 9999
+    volumes:
+      - ./config.yml:/app/config.yml:ro
+      - zurg_data:/app/data
+    networks:
+      - moody-blues-net
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://127.0.0.1:9999/dav/ || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  rclone:
+    image: rclone/rclone:latest
+    container_name: rclone
+    restart: unless-stopped
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    devices:
+      - /dev/fuse:/dev/fuse:rwm
+    volumes:
+      - ${MEDIA_MOUNT_PATH:-/mnt/media}:/mnt/media:rshared
+      - ./rclone.conf:/config/rclone/rclone.conf:ro
+      - rclone_cache:/root/.cache/rclone
+    networks:
+      - moody-blues-net
+    depends_on:
+      zurg:
+        condition: service_healthy
+    command: >
+      mount zurg: /mnt/media
+      --allow-other
+      --allow-non-empty
+      --dir-cache-time 15s
+      --vfs-cache-mode full
+      --vfs-cache-max-size 10G
+      --vfs-read-chunk-size 64M
+      --vfs-read-chunk-size-limit 2G
+      --buffer-size 64M
+      --umask 002
+      --uid ${PUID:-1000}
+      --gid ${PGID:-1000}
+
+networks:
+  moody-blues-net:
+    external: true
+
+volumes:
+  zurg_data:
+  rclone_cache:
