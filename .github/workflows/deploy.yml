@@ -108,7 +108,7 @@ jobs:
             CADDY_STATUS=$(docker inspect --format='{{.State.Status}}' caddy 2>/dev/null || echo "missing")
             if [ "$CADDY_STATUS" != "running" ]; then
               echo "ERROR: Caddy container is not running (status: $CADDY_STATUS)"
-              docker logs --tail 50 caddy 2>/dev/null || true
+              docker logs --tail 50 caddy 2>&1 || true
               exit 1
             fi
             echo "==> Gateway verified: Caddy is running."
@@ -130,14 +130,14 @@ jobs:
               ZURG_STATUS=$(docker inspect --format='{{.State.Status}}' zurg 2>/dev/null || echo "missing")
               if [ "$ZURG_STATUS" != "running" ]; then
                 echo "ERROR: Zurg container is not running (status: $ZURG_STATUS)"
-                docker logs --tail 50 zurg 2>/dev/null || true
+                docker logs --tail 50 zurg 2>&1 || true
                 exit 1
               fi
 
               RCLONE_STATUS=$(docker inspect --format='{{.State.Status}}' rclone 2>/dev/null || echo "missing")
               if [ "$RCLONE_STATUS" != "running" ]; then
                 echo "ERROR: Rclone container is not running (status: $RCLONE_STATUS)"
-                docker logs --tail 50 rclone 2>/dev/null || true
+                docker logs --tail 50 rclone 2>&1 || true
                 exit 1
               fi
               echo "==> Storage verified: Zurg and Rclone are running."
@@ -148,14 +148,14 @@ jobs:
             JELLYFIN_STATUS=$(docker inspect --format='{{.State.Status}}' jellyfin 2>/dev/null || echo "missing")
             if [ "$JELLYFIN_STATUS" != "running" ]; then
               echo "ERROR: Jellyfin container is not running (status: $JELLYFIN_STATUS)"
-              docker logs --tail 50 jellyfin 2>/dev/null || true
+              docker logs --tail 50 jellyfin 2>&1 || true
               exit 1
             fi
 
             JELLYSEERR_STATUS=$(docker inspect --format='{{.State.Status}}' jellyseerr 2>/dev/null || echo "missing")
             if [ "$JELLYSEERR_STATUS" != "running" ]; then
               echo "ERROR: Jellyseerr container is not running (status: $JELLYSEERR_STATUS)"
-              docker logs --tail 50 jellyseerr 2>/dev/null || true
+              docker logs --tail 50 jellyseerr 2>&1 || true
               exit 1
             fi
             echo "==> Stream verified: Jellyfin and Jellyseerr are running."

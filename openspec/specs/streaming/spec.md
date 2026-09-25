@@ -44,7 +44,7 @@ The platform gateway SHALL route public HTTPS requests for the streaming domain 
 
 #### Scenario: Accessing Jellyfin streaming interface with custom or fallback domain
 
-- **WHEN** an HTTPS client visits the domain evaluated from `{$JELLYFIN_DOMAIN:jellyfin.{$DOMAIN}}`
+- **WHEN** an HTTPS client visits the streaming domain evaluated from `{$JELLYFIN_DOMAIN}`
 - **THEN** Caddy reverse proxies the request to `jellyfin:8096` with automated TLS termination and security headers
 
 #### Scenario: Accessing Jellyseerr request portal

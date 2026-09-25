@@ -1,4 +1,4 @@
-{$JELLYFIN_DOMAIN:jellyfin.{$DOMAIN}} {
+{$JELLYFIN_DOMAIN} {
     import security_headers
     import compression
 
