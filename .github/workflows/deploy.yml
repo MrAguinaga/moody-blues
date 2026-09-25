@@ -70,13 +70,19 @@ jobs:
 
             MEDIA_MOUNT_PATH=$(grep -E '^MEDIA_MOUNT_PATH=' .env | head -n 1 | cut -d '=' -f2- | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//" || true)
             echo "==> Ensuring host media mount directory exists: ${MEDIA_MOUNT_PATH:-/mnt/media}..."
-            mkdir -p "${MEDIA_MOUNT_PATH:-/mnt/media}"
+            mkdir -p "${MEDIA_MOUNT_PATH:-/mnt/media}" 2>/dev/null || sudo -n mkdir -p "${MEDIA_MOUNT_PATH:-/mnt/media}" 2>/dev/null || true
 
             echo "==> Ensuring external network moody-blues-net exists..."
             docker network inspect moody-blues-net >/dev/null 2>&1 || docker network create moody-blues-net
 
             echo "==> Orchestrating gateway stack..."
             docker compose --env-file .env -f compose/gateway/docker-compose.yml up -d --remove-orphans
+
+            RD_TOKEN=$(grep -E '^RD_API_TOKEN=' .env | head -n 1 | cut -d '=' -f2- | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//" || true)
+            if [ -n "$RD_TOKEN" ] && [ "$RD_TOKEN" != "your-real-debrid-api-token" ]; then
+              echo "==> Injecting RD_API_TOKEN into compose/storage/config.yml..."
+              sed -i "s|\${RD_API_TOKEN}|${RD_TOKEN}|g" compose/storage/config.yml
+            fi
 
             echo "==> Orchestrating storage stack..."
             docker compose --env-file .env -f compose/storage/docker-compose.yml up -d --remove-orphans
