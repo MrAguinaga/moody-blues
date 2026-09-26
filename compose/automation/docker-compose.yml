@@ -32,8 +32,8 @@ services:
       - ${ZURG_MOUNT_PATH:-/mnt/zurg}:/mnt/zurg:ro
       # Organized media library – writable. Sonarr imports/renames files into here.
       - ${MEDIA_PATH:-/mnt/media}:/media
-      # RDT-Client symlink directory (read-only; symlinks point into /mnt/zurg)
-      - ./rdtclient_symlinks:/data/downloads:ro
+      # RDT-Client symlink directory (symlinks point into /mnt/zurg)
+      - ./rdtclient_symlinks:/data/downloads
     networks:
       - moody-blues-net
     healthcheck:
@@ -57,8 +57,8 @@ services:
       - ${ZURG_MOUNT_PATH:-/mnt/zurg}:/mnt/zurg:ro
       # Organized media library – writable. Radarr imports/renames files into here.
       - ${MEDIA_PATH:-/mnt/media}:/media
-      # RDT-Client symlink directory (read-only; symlinks point into /mnt/zurg)
-      - ./rdtclient_symlinks:/data/downloads:ro
+      # RDT-Client symlink directory (symlinks point into /mnt/zurg)
+      - ./rdtclient_symlinks:/data/downloads
     networks:
       - moody-blues-net
     healthcheck:
