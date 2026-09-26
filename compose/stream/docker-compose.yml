@@ -10,6 +10,8 @@ services:
     volumes:
       # Organized media library – read-only. Contains symlinks into the Zurg FUSE mount.
       - ${MEDIA_PATH:-/mnt/media}:/media:ro
+      # Raw Zurg FUSE mount – read-only. Allows Jellyfin to resolve symlinks targeting /mnt/zurg.
+      - ${ZURG_MOUNT_PATH:-/mnt/zurg}:/mnt/zurg:ro
       - jellyfin_config:/config
       - jellyfin_cache:/cache
     networks:
