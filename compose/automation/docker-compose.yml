@@ -80,16 +80,6 @@ services:
       retries: 3
       start_period: 30s
 
-networks:
-  moody-blues-net:
-    external: true
-
-volumes:
-  prowlarr_config:
-  sonarr_config:
-  radarr_config:
-  rdtclient_data:
-
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest
     container_name: flaresolverr
@@ -99,3 +89,13 @@ volumes:
       - TZ=${TZ:-Etc/UTC}
     networks:
       - moody-blues-net
+
+networks:
+  moody-blues-net:
+    external: true
+
+volumes:
+  prowlarr_config:
+  sonarr_config:
+  radarr_config:
+  rdtclient_data:
