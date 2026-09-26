@@ -63,7 +63,7 @@ jobs:
             fi
 
             echo "==> Ensuring storage defaults exist in .env..."
-            for var in RD_API_TOKEN MEDIA_MOUNT_PATH PUID PGID; do
+            for var in RD_API_TOKEN ZURG_MOUNT_PATH MEDIA_PATH PUID PGID; do
               if ! grep -q "^${var}=" .env; then
                 echo "==> Appending default ${var} from .env.example to .env..."
                 grep "^${var}=" .env.example >> .env || true
@@ -87,9 +87,17 @@ jobs:
               fi
             done
 
-            MEDIA_MOUNT_PATH=$(grep -E '^MEDIA_MOUNT_PATH=' .env | head -n 1 | cut -d '=' -f2- | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//" || true)
-            echo "==> Ensuring host media mount directory exists: ${MEDIA_MOUNT_PATH:-/mnt/media}..."
-            mkdir -p "${MEDIA_MOUNT_PATH:-/mnt/media}" 2>/dev/null || sudo -n mkdir -p "${MEDIA_MOUNT_PATH:-/mnt/media}" 2>/dev/null || true
+            ZURG_MOUNT_PATH=$(grep -E '^ZURG_MOUNT_PATH=' .env | head -n 1 | cut -d '=' -f2- | tr -d ' "' || true)
+            MEDIA_PATH=$(grep -E '^MEDIA_PATH=' .env | head -n 1 | cut -d '=' -f2- | tr -d ' "' || true)
+            ZURG_MOUNT_PATH="${ZURG_MOUNT_PATH:-/mnt/zurg}"
+            MEDIA_PATH="${MEDIA_PATH:-/mnt/media}"
+
+            echo "==> Ensuring Zurg raw mount directory exists: ${ZURG_MOUNT_PATH}..."
+            mkdir -p "${ZURG_MOUNT_PATH}" 2>/dev/null || sudo -n mkdir -p "${ZURG_MOUNT_PATH}" 2>/dev/null || true
+
+            echo "==> Ensuring organized media library directories exist: ${MEDIA_PATH}/{anime,movies,shows}..."
+            mkdir -p "${MEDIA_PATH}/anime" "${MEDIA_PATH}/movies" "${MEDIA_PATH}/shows" 2>/dev/null \\
+              || sudo -n mkdir -p "${MEDIA_PATH}/anime" "${MEDIA_PATH}/movies" "${MEDIA_PATH}/shows" 2>/dev/null || true
 
             echo "==> Ensuring external network moody-blues-net exists..."
             docker network inspect moody-blues-net >/dev/null 2>&1 || docker network create moody-blues-net

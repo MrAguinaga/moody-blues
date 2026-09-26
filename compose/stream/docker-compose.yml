@@ -8,7 +8,8 @@ services:
       PGID: ${PGID:-1000}
       JELLYFIN_PublishedServerUrl: https://${JELLYFIN_DOMAIN:-jellyfin.${DOMAIN:-example.com}}
     volumes:
-      - ${MEDIA_MOUNT_PATH:-/mnt/media}:/media:ro
+      # Organized media library – read-only. Contains symlinks into the Zurg FUSE mount.
+      - ${MEDIA_PATH:-/mnt/media}:/media:ro
       - jellyfin_config:/config
       - jellyfin_cache:/cache
     networks:

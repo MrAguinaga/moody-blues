@@ -30,7 +30,10 @@ services:
     devices:
       - /dev/fuse:/dev/fuse:rwm
     volumes:
-      - ${MEDIA_MOUNT_PATH:-/mnt/media}:/mnt/media:rshared
+      # Raw Zurg FUSE mount – read-only virtual filesystem from Real-Debrid
+      - ${ZURG_MOUNT_PATH:-/mnt/zurg}:/mnt/zurg:rshared
+      # Organized media library – writable, managed by Sonarr/Radarr via symlinks
+      - ${MEDIA_PATH:-/mnt/media}:/mnt/media:rshared
       - ./rclone.conf:/config/rclone/rclone.conf:ro
       - rclone_cache:/root/.cache/rclone
     networks:
@@ -39,7 +42,7 @@ services:
       zurg:
         condition: service_healthy
     command: >
-      mount zurg: /mnt/media
+      mount zurg: /mnt/zurg
       --allow-other
       --allow-non-empty
       --dir-cache-time 15s

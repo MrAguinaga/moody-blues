@@ -28,7 +28,12 @@ services:
       TZ: ${TZ:-Etc/UTC}
     volumes:
       - sonarr_config:/config
-      - ${MEDIA_MOUNT_PATH:-/mnt/media}:/media
+      # Raw Zurg FUSE mount – read-only. Symlinks in /data/downloads resolve here.
+      - ${ZURG_MOUNT_PATH:-/mnt/zurg}:/mnt/zurg:ro
+      # Organized media library – writable. Sonarr imports/renames files into here.
+      - ${MEDIA_PATH:-/mnt/media}:/media
+      # RDT-Client symlink directory (read-only; symlinks point into /mnt/zurg)
+      - ./rdtclient_symlinks:/data/downloads:ro
     networks:
       - moody-blues-net
     healthcheck:
@@ -48,7 +53,12 @@ services:
       TZ: ${TZ:-Etc/UTC}
     volumes:
       - radarr_config:/config
-      - ${MEDIA_MOUNT_PATH:-/mnt/media}:/media
+      # Raw Zurg FUSE mount – read-only. Symlinks in /data/downloads resolve here.
+      - ${ZURG_MOUNT_PATH:-/mnt/zurg}:/mnt/zurg:ro
+      # Organized media library – writable. Radarr imports/renames files into here.
+      - ${MEDIA_PATH:-/mnt/media}:/media
+      # RDT-Client symlink directory (read-only; symlinks point into /mnt/zurg)
+      - ./rdtclient_symlinks:/data/downloads:ro
     networks:
       - moody-blues-net
     healthcheck:
@@ -70,7 +80,10 @@ services:
       TZ: ${TZ:-Etc/UTC}
     volumes:
       - rdtclient_data:/data/db
-      - ${MEDIA_MOUNT_PATH:-/mnt/media}:/data/downloads
+      # Raw Zurg FUSE mount – RDT-Client creates symlinks pointing to files here.
+      - ${ZURG_MOUNT_PATH:-/mnt/zurg}:/mnt/zurg:ro
+      # Symlink output directory (shared with Sonarr/Radarr as /data/downloads)
+      - ./rdtclient_symlinks:/data/downloads
     networks:
       - moody-blues-net
     healthcheck:
