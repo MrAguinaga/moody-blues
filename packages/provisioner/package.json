@@ -1,0 +1,22 @@
+{
+  "name": "@moody-blues/provisioner",
+  "version": "0.1.0",
+  "description": "Headless API pre-seeding and provisioning engine for Moody Blues",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2"
+  }
+}

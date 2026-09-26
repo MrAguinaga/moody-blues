@@ -1,0 +1,22 @@
+{
+  "name": "@moody-blues/cli",
+  "version": "0.1.0",
+  "description": "Interactive CLI for Moody Blues autonomous media stack",
+  "type": "module",
+  "bin": {
+    "moody-blues": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@moody-blues/provisioner": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2"
+  }
+}

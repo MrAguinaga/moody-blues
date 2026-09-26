@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Production & Build outputs
+dist/
+build/
+coverage/
+.turbo/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Docker, mutable service data & configs
+data/
+config/
+*.sqlite
+*.sqlite-journal
+*.db
+*.db-journal
+
+# Media mount paths & symlinks
+/mnt/
+mnt/
+rdtclient_symlinks/
+mock_storage/
+
+# Backups and archives
+backups/
+*.tar.gz
+*.zip
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / Editor artifacts
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
