@@ -89,3 +89,13 @@ volumes:
   sonarr_config:
   radarr_config:
   rdtclient_data:
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=info
+      - TZ=${TZ:-Etc/UTC}
+    networks:
+      - moody-blues-net
