@@ -1,3 +1,5 @@
+import type { DeployMode } from '@moody-blues/provisioner';
+
 export type CheckStatus = 'pending' | 'running' | 'success' | 'warning' | 'error';
 
 export interface CheckResult {
@@ -20,9 +22,15 @@ export interface SystemReport {
 
 export type CheckUpdateCallback = (report: SystemReport, currentCheck: CheckResult) => void;
 
+export interface CheckContext {
+  mode?: DeployMode;
+  domain?: string;
+  home?: string;
+}
+
 export interface CheckDefinition {
   id: string;
   name: string;
   description: string;
-  run: () => Promise<CheckResult>;
+  run: (context?: CheckContext) => Promise<CheckResult>;
 }

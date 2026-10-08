@@ -38,6 +38,27 @@ export {
   type ServiceName,
 } from './home';
 export {
+  type ContainerRuntime,
+  GATEWAY_CHANGED_FLAG,
+  INFRASTRUCTURE_STEPS,
+  type PipelineEvent,
+  type PipelineFlags,
+  type PipelineReport,
+  PROVISION_SCOPES,
+  type ProvisionContext,
+  type ProvisionScope,
+  type ProvisionStep,
+  runPipeline,
+  type RunPipelineOptions,
+  type RuntimeCallOptions,
+  type StepDescriptor,
+  type StepOutcome,
+  type StepResult,
+  type StepResultStatus,
+  type StepStatus,
+  type WaitHealthyOptions,
+} from './pipeline';
+export {
   createProvisioner,
   PROVISIONER_VERSION,
   type ProvisionerConfig,

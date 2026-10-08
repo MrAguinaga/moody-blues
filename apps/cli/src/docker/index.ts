@@ -9,6 +9,13 @@ export {
   type CreateComposeRunnerOptions,
 } from './compose.runner';
 export {
+  type ComposeRuntimeOptions,
+  createComposeRuntime,
+  DEFAULT_HEALTH_POLL_INTERVAL_MS,
+  DEFAULT_HEALTH_TIMEOUT_MS,
+  DEFAULT_UP_TIMEOUT_MS,
+} from './compose.runtime';
+export {
   COMPOSE_PROJECT_NAME,
   type ComposeOutput,
   type ComposeRunner,

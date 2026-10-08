@@ -1,15 +1,21 @@
 import { Box, Text } from 'ink';
 import React, { useEffect, useState } from 'react';
 
-import { DEFAULT_CHECKS, runPreflightChecks, type SystemReport } from '../../checks';
+import {
+  type CheckContext,
+  DEFAULT_CHECKS,
+  runPreflightChecks,
+  type SystemReport,
+} from '../../checks';
 import { CheckItem } from '../components/CheckItem';
 import { THEME } from '../theme';
 
 interface PreflightViewProps {
+  context?: CheckContext;
   onComplete?: (report: SystemReport) => void;
 }
 
-export const PreflightView: React.FC<PreflightViewProps> = ({ onComplete }) => {
+export const PreflightView: React.FC<PreflightViewProps> = ({ context, onComplete }) => {
   const [report, setReport] = useState<SystemReport>(() => ({
     timestamp: new Date().toISOString(),
     allPassed: false,
@@ -29,11 +35,15 @@ export const PreflightView: React.FC<PreflightViewProps> = ({ onComplete }) => {
     let isMounted = true;
 
     async function execute() {
-      const finalReport = await runPreflightChecks((updatedReport) => {
-        if (isMounted) {
-          setReport({ ...updatedReport });
-        }
-      });
+      const finalReport = await runPreflightChecks(
+        (updatedReport) => {
+          if (isMounted) {
+            setReport({ ...updatedReport });
+          }
+        },
+        DEFAULT_CHECKS,
+        context,
+      );
 
       if (isMounted) {
         setIsCompleted(true);
@@ -46,7 +56,7 @@ export const PreflightView: React.FC<PreflightViewProps> = ({ onComplete }) => {
     return () => {
       isMounted = false;
     };
-  }, [onComplete]);
+  }, [context, onComplete]);
 
   return (
     <Box flexDirection="column" marginY={1}>

@@ -43,6 +43,12 @@ export const MainMenuView: React.FC = () => {
           </Text>
           <Text color={THEME.brand.metallic}>— Gracefully stop all services</Text>
         </Box>
+        <Box gap={2}>
+          <Text bold color={THEME.brand.accent}>
+            moody-blues reset --fresh
+          </Text>
+          <Text color={THEME.brand.metallic}>— Purge managed data and reprovision</Text>
+        </Box>
       </Box>
     </Box>
   );

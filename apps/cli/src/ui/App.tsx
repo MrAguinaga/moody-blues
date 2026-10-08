@@ -1,7 +1,7 @@
 import { Box, Text, useApp, useInput } from 'ink';
 import React, { useCallback, useState } from 'react';
 
-import type { SystemReport } from '../checks';
+import type { CheckContext, SystemReport } from '../checks';
 import { Banner } from './components/Banner';
 import { THEME } from './theme';
 import { MainMenuView } from './views/MainMenuView';
@@ -12,10 +12,16 @@ export type CliMode = 'check' | 'welcome';
 export interface AppProps {
   mode?: CliMode;
   version?: string;
+  context?: CheckContext;
   onCompleted?: (report: SystemReport) => void;
 }
 
-export const App: React.FC<AppProps> = ({ mode = 'welcome', version = '0.1.0', onCompleted }) => {
+export const App: React.FC<AppProps> = ({
+  mode = 'welcome',
+  version = '0.1.0',
+  context,
+  onCompleted,
+}) => {
   const { exit } = useApp();
   const [report, setReport] = useState<SystemReport | null>(null);
 
@@ -43,7 +49,7 @@ export const App: React.FC<AppProps> = ({ mode = 'welcome', version = '0.1.0', o
     <Box flexDirection="column" paddingX={1}>
       <Banner version={version} />
 
-      <PreflightView onComplete={handlePreflightComplete} />
+      <PreflightView context={context} onComplete={handlePreflightComplete} />
 
       {mode === 'welcome' && report && (
         <>

@@ -2,13 +2,24 @@ import { Command } from 'commander';
 import { render } from 'ink';
 import React from 'react';
 
-import { runPreflightChecks, type SystemReport } from '../checks';
+import {
+  type CheckContext,
+  DEFAULT_CHECKS,
+  loadCheckContext,
+  runPreflightChecks,
+  type SystemReport,
+} from '../checks';
 import { App } from '../ui/App';
 import { isInteractiveTerminal } from '../utils/system.utils';
+import { formatCheckLines } from './check-output.utils';
 
-export async function executeHeadlessCheck(version: string, asJson = false): Promise<void> {
+export async function executeHeadlessCheck(
+  version: string,
+  asJson = false,
+  context: CheckContext = loadCheckContext(),
+): Promise<void> {
   if (asJson) {
-    const report = await runPreflightChecks();
+    const report = await runPreflightChecks(undefined, DEFAULT_CHECKS, context);
     console.log(JSON.stringify(report, null, 2));
     if (report.hasErrors) {
       process.exit(1);
@@ -19,20 +30,13 @@ export async function executeHeadlessCheck(version: string, asJson = false): Pro
   console.log(`Moody Blues CLI v${version} — Pre-flight Checks (Headless)`);
   console.log('-'.repeat(60));
 
-  const report = await runPreflightChecks((_rep, current) => {
-    if (current.status !== 'running' && current.status !== 'pending') {
-      const badge =
-        current.status === 'success' ? '[OK]' : current.status === 'warning' ? '[WARN]' : '[FAIL]';
-
-      console.log(`${badge} ${current.name} — ${current.message ?? ''}`);
-      if (current.error) {
-        console.log(`   ↳ Detail: ${current.error}`);
-      }
-      if (current.suggestion) {
-        console.log(`   ↳ Suggestion: ${current.suggestion}`);
-      }
-    }
-  });
+  const report = await runPreflightChecks(
+    (_rep, current) => {
+      formatCheckLines(current).forEach((line) => console.log(line));
+    },
+    DEFAULT_CHECKS,
+    context,
+  );
 
   console.log('-'.repeat(60));
   if (report.hasErrors) {
@@ -45,13 +49,17 @@ export async function executeHeadlessCheck(version: string, asJson = false): Pro
   }
 }
 
-export async function startInteractiveCheck(version: string): Promise<void> {
+export async function startInteractiveCheck(
+  version: string,
+  context: CheckContext = loadCheckContext(),
+): Promise<void> {
   let exitCode = 0;
 
   const appInstance = render(
     React.createElement(App, {
       mode: 'check',
       version,
+      context,
       onCompleted: (report: SystemReport) => {
         if (report.hasErrors) {
           exitCode = 1;

@@ -1,18 +1,32 @@
 import type {
+  CheckContext,
   CheckDefinition,
   CheckResult,
   CheckUpdateCallback,
   SystemReport,
 } from './checks.types';
 import { composeCheck } from './compose.check';
+import { diskSpaceCheck } from './disk-space.check';
+import { dnsCheck } from './dns.check';
 import { dockerCheck } from './docker.check';
+import { dockerGroupCheck } from './docker-group.check';
+import { fuseCheck } from './fuse.check';
 import { portsCheck } from './ports.check';
 
-export const DEFAULT_CHECKS: CheckDefinition[] = [dockerCheck, composeCheck, portsCheck];
+export const DEFAULT_CHECKS: CheckDefinition[] = [
+  dockerCheck,
+  dockerGroupCheck,
+  composeCheck,
+  portsCheck,
+  fuseCheck,
+  dnsCheck,
+  diskSpaceCheck,
+];
 
 export async function runPreflightChecks(
   onUpdate?: CheckUpdateCallback,
   checks: CheckDefinition[] = DEFAULT_CHECKS,
+  context: CheckContext = {},
 ): Promise<SystemReport> {
   const initialChecks: CheckResult[] = checks.map((c) => ({
     id: c.id,
@@ -38,7 +52,7 @@ export async function runPreflightChecks(
     };
     onUpdate?.(report, report.checks[i]!);
 
-    const result = await checkDef.run();
+    const result = await checkDef.run(context);
     report.checks[i] = result;
     onUpdate?.(report, result);
   }

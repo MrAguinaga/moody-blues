@@ -1,7 +1,7 @@
 import { render } from 'ink';
 import React from 'react';
 
-import type { SystemReport } from '../checks';
+import { type CheckContext, loadCheckContext, type SystemReport } from '../checks';
 import { App } from '../ui/App';
 import { isInteractiveTerminal } from '../utils/system.utils';
 import { executeHeadlessCheck } from './check.command';
@@ -11,13 +11,17 @@ export interface RootActionOptions {
   json?: boolean;
 }
 
-export async function startInteractiveWelcome(version: string): Promise<void> {
+export async function startInteractiveWelcome(
+  version: string,
+  context: CheckContext = loadCheckContext(),
+): Promise<void> {
   let exitCode = 0;
 
   const appInstance = render(
     React.createElement(App, {
       mode: 'welcome',
       version,
+      context,
       onCompleted: (report: SystemReport) => {
         if (report.hasErrors) {
           exitCode = 1;

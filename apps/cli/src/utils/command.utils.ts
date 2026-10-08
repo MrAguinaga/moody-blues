@@ -22,3 +22,11 @@ export function failWith(error: unknown): void {
   console.error(`✖ ${errorMessage(error)}`);
   process.exitCode = 1;
 }
+
+export function abortOnInterrupt(): AbortController {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  process.once('SIGINT', abort);
+  process.once('SIGTERM', abort);
+  return controller;
+}
