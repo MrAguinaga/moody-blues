@@ -17,7 +17,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "commit": "cz",
-    "cli": "tsx apps/cli/src/index.ts",
+    "cli": "tsx apps/cli/src/main.ts",
     "clean": "pnpm -r exec rimraf dist"
   },
   "config": {

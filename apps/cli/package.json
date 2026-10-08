@@ -4,7 +4,7 @@
   "description": "Interactive CLI for Moody Blues autonomous media stack",
   "type": "module",
   "bin": {
-    "moody-blues": "./dist/index.js"
+    "moody-blues": "./dist/main.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,9 +14,14 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@moody-blues/provisioner": "workspace:*"
+    "@moody-blues/provisioner": "workspace:*",
+    "commander": "^15.0.0",
+    "ink": "^7.1.1",
+    "ink-spinner": "^5.0.0",
+    "react": "^19.3.0"
   },
   "devDependencies": {
-    "@types/node": "^26.6.2"
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0"
   }
 }
