@@ -1,7 +1,13 @@
 import { Command } from 'commander';
 
 import pkg from '../package.json' with { type: 'json' };
-import { createCheckCommand, handleRootAction } from './commands';
+import {
+  createCheckCommand,
+  createStartCommand,
+  createStatusCommand,
+  createStopCommand,
+  handleRootAction,
+} from './commands';
 
 export const CLI_VERSION: string = pkg.version;
 
@@ -17,6 +23,9 @@ export function buildCliProgram(): Command {
     .option('-y, --yes', 'Automatically confirm prompts');
 
   program.addCommand(createCheckCommand(CLI_VERSION));
+  program.addCommand(createStartCommand(CLI_VERSION));
+  program.addCommand(createStopCommand());
+  program.addCommand(createStatusCommand(CLI_VERSION));
 
   program.action(async () => {
     const globalOpts = program.opts();
