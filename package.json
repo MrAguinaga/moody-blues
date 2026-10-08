@@ -16,6 +16,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "test": "vitest run",
     "commit": "cz",
     "cli": "tsx apps/cli/src/main.ts",
     "clean": "pnpm -r exec rimraf dist"
@@ -43,6 +44,7 @@
     "tsup": "^8.5.1",
     "tsx": "^4.23.15",
     "typescript": "^5.8.2",
-    "typescript-eslint": "^8.26.1"
+    "typescript-eslint": "^8.26.1",
+    "vitest": "^5.0.3"
   }
 }

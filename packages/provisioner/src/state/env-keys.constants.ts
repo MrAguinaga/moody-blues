@@ -1,0 +1,32 @@
+export const HOST_ENV_KEYS = [
+  'MB_HOME',
+  'MB_DOMAIN',
+  'PUID',
+  'PGID',
+  'TZ',
+  'COMPOSE_PROFILES',
+  'MNT_PROPAGATION',
+] as const;
+
+export const USER_SECRET_ENV_KEYS = [
+  'RD_API_TOKEN',
+  'ADMIN_USERNAME',
+  'ADMIN_PASSWORD',
+  'OPENSUBTITLES_USERNAME',
+  'OPENSUBTITLES_PASSWORD',
+] as const;
+
+export const SERVICE_KEY_ENV_KEYS = [
+  'SONARR_API_KEY',
+  'RADARR_API_KEY',
+  'PROWLARR_API_KEY',
+  'BAZARR_API_KEY',
+  'DECYPHARR_API_TOKEN',
+  'SEERR_API_KEY',
+] as const;
+
+export const ENV_KEY_ORDER: readonly string[] = [
+  ...HOST_ENV_KEYS,
+  ...USER_SECRET_ENV_KEYS,
+  ...SERVICE_KEY_ENV_KEYS,
+];

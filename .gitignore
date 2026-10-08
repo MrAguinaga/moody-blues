@@ -14,8 +14,8 @@ coverage/
 !.env.example
 
 # Docker, mutable service data & configs
-data/
-config/
+/data/
+/config/
 *.sqlite
 *.sqlite-journal
 *.db
