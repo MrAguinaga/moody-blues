@@ -1,0 +1,166 @@
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '3'
+
+services:
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:4.0.20.3014-ls326
+    restart: unless-stopped
+    environment:
+      PUID: ${PUID:?PUID is required}
+      PGID: ${PGID:?PGID is required}
+      UMASK: '002'
+      TZ: ${TZ:-UTC}
+    logging: *logging
+    ports:
+      - '127.0.0.1:8989:8989'
+    networks:
+      - default
+      - debrid
+    volumes:
+      - type: bind
+        source: ${MB_HOME:?MB_HOME is required}/config/sonarr
+        target: /config
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${MB_HOME}/data
+        target: /data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${MB_HOME}/mnt
+        target: /mnt
+        bind:
+          propagation: ${MNT_PROPAGATION:?MNT_PROPAGATION is required}
+          create_host_path: false
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:8989/ping']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:6.4.4.10685-ls319
+    restart: unless-stopped
+    environment:
+      PUID: ${PUID:?PUID is required}
+      PGID: ${PGID:?PGID is required}
+      UMASK: '002'
+      TZ: ${TZ:-UTC}
+    logging: *logging
+    ports:
+      - '127.0.0.1:7878:7878'
+    networks:
+      - default
+      - debrid
+    volumes:
+      - type: bind
+        source: ${MB_HOME:?MB_HOME is required}/config/radarr
+        target: /config
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${MB_HOME}/data
+        target: /data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${MB_HOME}/mnt
+        target: /mnt
+        bind:
+          propagation: ${MNT_PROPAGATION:?MNT_PROPAGATION is required}
+          create_host_path: false
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:7878/ping']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:2.6.5.5623-ls163
+    restart: unless-stopped
+    environment:
+      PUID: ${PUID:?PUID is required}
+      PGID: ${PGID:?PGID is required}
+      UMASK: '002'
+      TZ: ${TZ:-UTC}
+    logging: *logging
+    ports:
+      - '127.0.0.1:9696:9696'
+    volumes:
+      - type: bind
+        source: ${MB_HOME:?MB_HOME is required}/config/prowlarr
+        target: /config
+        bind:
+          create_host_path: false
+    depends_on:
+      flaresolverr:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:9696/ping']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:v3.5.2
+    init: true
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-UTC}
+    logging: *logging
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8191/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:v1.6.2-ls367
+    restart: unless-stopped
+    environment:
+      PUID: ${PUID:?PUID is required}
+      PGID: ${PGID:?PGID is required}
+      UMASK: '002'
+      TZ: ${TZ:-UTC}
+    logging: *logging
+    ports:
+      - '127.0.0.1:6767:6767'
+    volumes:
+      - type: bind
+        source: ${MB_HOME:?MB_HOME is required}/config/bazarr
+        target: /config
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${MB_HOME}/data
+        target: /data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${MB_HOME}/mnt
+        target: /mnt
+        bind:
+          propagation: ${MNT_PROPAGATION:?MNT_PROPAGATION is required}
+          create_host_path: false
+    depends_on:
+      sonarr:
+        condition: service_healthy
+      radarr:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:6767/api/system/ping']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  debrid: {}

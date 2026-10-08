@@ -16,6 +16,12 @@ export {
   type TranscodingMode,
 } from './config';
 export {
+  caddyfilePath,
+  type CaddyfileWriteResult,
+  renderCaddyfile,
+  writeCaddyfile,
+} from './gateway';
+export {
   applyOwnership,
   createLayout,
   ensureHostTree,

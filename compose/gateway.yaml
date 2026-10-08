@@ -1,0 +1,40 @@
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '3'
+
+services:
+  caddy:
+    image: caddy:2.11.7-alpine
+    init: true
+    restart: unless-stopped
+    user: '${PUID:?PUID is required}:${PGID:?PGID is required}'
+    logging: *logging
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - type: bind
+        source: ${MB_HOME:?MB_HOME is required}/config/caddy/Caddyfile
+        target: /etc/caddy/Caddyfile
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${MB_HOME}/config/caddy/data
+        target: /data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${MB_HOME}/config/caddy/config
+        target: /config
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:2019/config/']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

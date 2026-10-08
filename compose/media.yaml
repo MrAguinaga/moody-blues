@@ -1,0 +1,82 @@
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '3'
+
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:12.2.20261005-225228
+    init: true
+    restart: unless-stopped
+    user: '${PUID:?PUID is required}:${PGID:?PGID is required}'
+    environment:
+      TZ: ${TZ:-UTC}
+      JELLYFIN_PublishedServerUrl: https://watch.${MB_DOMAIN:?MB_DOMAIN is required}
+    logging: *logging
+    ports:
+      - '127.0.0.1:8096:8096'
+    volumes:
+      - type: bind
+        source: ${MB_HOME:?MB_HOME is required}/config/jellyfin
+        target: /config
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${MB_HOME}/cache/jellyfin
+        target: /cache
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${MB_HOME}/data
+        target: /data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${MB_HOME}/mnt
+        target: /mnt
+        bind:
+          propagation: ${MNT_PROPAGATION:?MNT_PROPAGATION is required}
+          create_host_path: false
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:8096/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  seerr:
+    image: ghcr.io/seerr-team/seerr:v3.5.0
+    init: true
+    restart: unless-stopped
+    user: '${PUID:?PUID is required}:${PGID:?PGID is required}'
+    environment:
+      TZ: ${TZ:-UTC}
+      API_KEY: ${SEERR_API_KEY:?SEERR_API_KEY is required}
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging: *logging
+    ports:
+      - '127.0.0.1:5055:5055'
+    volumes:
+      - type: bind
+        source: ${MB_HOME:?MB_HOME is required}/config/seerr
+        target: /app/config
+        bind:
+          create_host_path: false
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost:5055/api/v1/settings/public',
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

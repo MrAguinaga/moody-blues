@@ -1,0 +1,7 @@
+name: moody-blues
+
+include:
+  - gateway.yaml
+  - storage.yaml
+  - media.yaml
+  - automation.yaml

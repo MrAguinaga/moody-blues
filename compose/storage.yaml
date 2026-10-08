@@ -1,0 +1,48 @@
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '3'
+
+services:
+  decypharr:
+    image: cy01/blackhole:v2.7
+    init: true
+    restart: unless-stopped
+    profiles: [storage]
+    environment:
+      PUID: ${PUID:?PUID is required}
+      PGID: ${PGID:?PGID is required}
+      UMASK: '002'
+      TZ: ${TZ:-UTC}
+    devices:
+      - /dev/fuse:/dev/fuse:rwm
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    logging: *logging
+    ports:
+      - '127.0.0.1:8282:8282'
+    networks:
+      - debrid
+    volumes:
+      - type: bind
+        source: ${MB_HOME:?MB_HOME is required}/config/decypharr
+        target: /app
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${MB_HOME}/data
+        target: /data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${MB_HOME}/mnt
+        target: /mnt
+        bind:
+          propagation: rshared
+          create_host_path: false
+
+networks:
+  debrid: {}
