@@ -1,9 +1,9 @@
 import {
   type ContainerRuntime,
   createLayout,
-  INFRASTRUCTURE_STEPS,
   type PipelineEvent,
   type PipelineReport,
+  PROVISIONING_PIPELINE,
   runPipeline,
 } from '@moody-blues/provisioner';
 
@@ -45,7 +45,7 @@ export async function runSetup(options: SetupRunOptions): Promise<SetupReport> {
   }
 
   const pipeline = await runPipeline(
-    INFRASTRUCTURE_STEPS,
+    PROVISIONING_PIPELINE,
     {
       config,
       secrets,

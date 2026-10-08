@@ -1,3 +1,4 @@
+export { type InsertPosition, insertSteps } from './compose-pipeline';
 export { INFRASTRUCTURE_STEPS } from './infrastructure.steps';
 export { GATEWAY_CHANGED_FLAG } from './pipeline.flags';
 export { runPipeline } from './pipeline.runner';
@@ -19,3 +20,4 @@ export {
   type StepStatus,
   type WaitHealthyOptions,
 } from './pipeline.types';
+export { PROVISIONING_PIPELINE } from './provisioning.pipeline';

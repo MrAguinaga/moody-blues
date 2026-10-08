@@ -3,11 +3,11 @@ import { join, sep } from 'node:path';
 
 import {
   type ContainerRuntime,
-  INFRASTRUCTURE_STEPS,
   type MbHomeLayout,
   parseUserSecrets,
   type PipelineEvent,
   type PipelineReport,
+  PROVISIONING_PIPELINE,
   type ProvisionStep,
   runPipeline,
 } from '@moody-blues/provisioner';
@@ -173,7 +173,7 @@ export async function runReset(options: ResetOptions): Promise<PipelineReport> {
   const runtime = options.runtime ?? createComposeRuntime({ home: layout.root });
 
   return runPipeline(
-    [...createResetSteps({ runner, layout }), ...INFRASTRUCTURE_STEPS],
+    [...createResetSteps({ runner, layout }), ...PROVISIONING_PIPELINE],
     {
       config,
       secrets: secrets.value.secrets,

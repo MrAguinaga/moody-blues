@@ -41,11 +41,14 @@ export {
   type ContainerRuntime,
   GATEWAY_CHANGED_FLAG,
   INFRASTRUCTURE_STEPS,
+  type InsertPosition,
+  insertSteps,
   type PipelineEvent,
   type PipelineFlags,
   type PipelineReport,
   PROVISION_SCOPES,
   type ProvisionContext,
+  PROVISIONING_PIPELINE,
   type ProvisionScope,
   type ProvisionStep,
   runPipeline,
@@ -59,11 +62,38 @@ export {
   type WaitHealthyOptions,
 } from './pipeline';
 export {
+  type ArrConfigInput,
+  type ArrService,
+  type BazarrSeedInput,
+  type DecypharrAuthInput,
+  type DecypharrSeedInput,
+  ensureSeedFile,
+  type ExpectedKey,
+  type OpenSubtitlesCredentials,
+  parseSizeBytes,
+  PRESEED_STEPS,
+  renderArrConfigXml,
+  renderBazarrConfig,
+  renderDecypharrAuth,
+  renderDecypharrConfig,
+  SeedConflictError,
+  type SeedFileOptions,
+  type SeedOutcome,
+  type SeedStatus,
+} from './preseed';
+export {
   createProvisioner,
   PROVISIONER_VERSION,
   type ProvisionerConfig,
 } from './provisioner.service';
 export type { Result } from './result.types';
+export {
+  loadServiceKeys,
+  SERVICE_CATALOG,
+  SERVICE_IDS,
+  type ServiceDescriptor,
+  type ServiceId,
+} from './services';
 export {
   buildHostEnv,
   ensureServiceKeys,
