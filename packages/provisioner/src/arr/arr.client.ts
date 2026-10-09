@@ -5,10 +5,13 @@ import type {
   ArrConfigName,
   ArrConfigResource,
   ArrKind,
+  CustomFormatResource,
   DownloadClientResource,
   HealthResource,
   LanguageResource,
+  QualityProfileResource,
   RootFolderResource,
+  SpecificationSchemaResource,
   SystemStatusResource,
 } from './arr.types';
 
@@ -48,6 +51,15 @@ export interface ArrClient {
   ): Promise<DownloadClientResource>;
   testDownloadClient(resource: DownloadClientResource): Promise<void>;
   listLanguages(): Promise<LanguageResource[]>;
+  listCustomFormats(): Promise<CustomFormatResource[]>;
+  getCustomFormatSchema(): Promise<SpecificationSchemaResource[]>;
+  createCustomFormat(resource: CustomFormatResource): Promise<CustomFormatResource>;
+  updateCustomFormat(resource: CustomFormatResource): Promise<CustomFormatResource>;
+  listQualityProfiles(): Promise<QualityProfileResource[]>;
+  getQualityProfileSchema(): Promise<QualityProfileResource>;
+  createQualityProfile(resource: QualityProfileResource): Promise<QualityProfileResource>;
+  updateQualityProfile(resource: QualityProfileResource): Promise<QualityProfileResource>;
+  deleteQualityProfile(id: number): Promise<void>;
 }
 
 export function createArrClient(options: ArrClientOptions): ArrClient {
@@ -85,6 +97,18 @@ export function createArrClient(options: ArrClientOptions): ArrClient {
       await http.post(`${API_ROOT}/downloadclient/test`, resource);
     },
     listLanguages: () => http.get(`${API_ROOT}/language`),
+    listCustomFormats: () => http.get(`${API_ROOT}/customformat`),
+    getCustomFormatSchema: () => http.get(`${API_ROOT}/customformat/schema`),
+    createCustomFormat: (resource) => http.post(`${API_ROOT}/customformat`, resource),
+    updateCustomFormat: (resource) => http.put(`${API_ROOT}/customformat/${resource.id}`, resource),
+    listQualityProfiles: () => http.get(`${API_ROOT}/qualityprofile`),
+    getQualityProfileSchema: () => http.get(`${API_ROOT}/qualityprofile/schema`),
+    createQualityProfile: (resource) => http.post(`${API_ROOT}/qualityprofile`, resource),
+    updateQualityProfile: (resource) =>
+      http.put(`${API_ROOT}/qualityprofile/${resource.id}`, resource),
+    // A profile in use answers 500 deterministically, so retrying only delays the report.
+    deleteQualityProfile: (id) =>
+      http.delete(`${API_ROOT}/qualityprofile/${id}`, { retry: { attempts: 1 } }),
   };
 }
 

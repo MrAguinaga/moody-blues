@@ -1,4 +1,4 @@
-import type { ProviderResource } from '../http/provider-fields';
+import type { ProviderField, ProviderResource } from '../http/provider-fields';
 
 export const ARR_KINDS = ['sonarr', 'radarr'] as const;
 export type ArrKind = (typeof ARR_KINDS)[number];
@@ -63,4 +63,69 @@ export interface DownloadClientResource extends ProviderResource {
   removeCompletedDownloads: boolean;
   removeFailedDownloads: boolean;
   tags: number[];
+}
+
+export interface SelectOption {
+  value: number;
+  name: string;
+}
+
+export interface CustomFormatSpecificationResource {
+  id?: number;
+  name: string;
+  implementation: string;
+  negate: boolean;
+  required: boolean;
+  fields: ProviderField[];
+  [key: string]: unknown;
+}
+
+export interface CustomFormatResource {
+  id?: number;
+  name: string;
+  includeCustomFormatWhenRenaming: boolean;
+  specifications: CustomFormatSpecificationResource[];
+}
+
+export interface SpecificationSchemaField extends ProviderField {
+  selectOptions?: SelectOption[];
+}
+
+export interface SpecificationSchemaResource {
+  implementation: string;
+  fields: SpecificationSchemaField[];
+  [key: string]: unknown;
+}
+
+export interface QualityResource {
+  id: number;
+  name: string;
+  [key: string]: unknown;
+}
+
+export interface QualityProfileItemResource {
+  id?: number;
+  name?: string | null;
+  quality?: QualityResource | null;
+  items: QualityProfileItemResource[];
+  allowed: boolean;
+}
+
+export interface QualityProfileFormatItemResource {
+  format: number;
+  name: string;
+  score: number;
+}
+
+export interface QualityProfileResource {
+  id?: number;
+  name: string;
+  upgradeAllowed: boolean;
+  cutoff: number;
+  items: QualityProfileItemResource[];
+  minFormatScore: number;
+  cutoffFormatScore: number;
+  minUpgradeFormatScore: number;
+  formatItems: QualityProfileFormatItemResource[];
+  language?: LanguageResource;
 }

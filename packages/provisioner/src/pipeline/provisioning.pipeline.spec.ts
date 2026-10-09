@@ -23,6 +23,7 @@ describe('PROVISIONING_PIPELINE', () => {
       'gateway-reload',
       'sonarr-provision',
       'radarr-provision',
+      'master-profile',
     ]);
   });
 

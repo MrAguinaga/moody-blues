@@ -87,6 +87,66 @@ describe('createArrClient', () => {
 
     expect(fake.requests[0]?.body).toMatchObject({ name: 'Decypharr' });
   });
+
+  it('reads the custom format collection and its schema', async () => {
+    const { fake, client: arr } = setup();
+    fake.on('GET', '/api/v3/customformat', { body: [{ id: 1, name: 'Latino' }] });
+    fake.on('GET', '/api/v3/customformat/schema', { body: [{ implementation: 'Source' }] });
+
+    await expect(arr.listCustomFormats()).resolves.toEqual([{ id: 1, name: 'Latino' }]);
+    await expect(arr.getCustomFormatSchema()).resolves.toEqual([{ implementation: 'Source' }]);
+  });
+
+  it('creates a custom format and updates it by id', async () => {
+    const { fake, client: arr } = setup();
+    fake.on('POST', '/api/v3/customformat', { status: 201, body: { id: 4 } });
+    fake.on('PUT', '/api/v3/customformat/4', { status: 202, body: { id: 4 } });
+    const format = { name: 'AV1', includeCustomFormatWhenRenaming: false, specifications: [] };
+
+    await arr.createCustomFormat(format);
+    await arr.updateCustomFormat({ ...format, id: 4 });
+
+    expect(fake.requests.map((request) => `${request.method} ${request.path}`)).toEqual([
+      'POST /api/v3/customformat',
+      'PUT /api/v3/customformat/4',
+    ]);
+    expect(fake.requests[1]?.body).toMatchObject({ id: 4, name: 'AV1' });
+  });
+
+  it('reads, creates, updates and deletes quality profiles', async () => {
+    const { fake, client: arr } = setup();
+    fake.on('GET', '/api/v3/qualityprofile', { body: [] });
+    fake.on('GET', '/api/v3/qualityprofile/schema', { body: { name: '' } });
+    fake.on('POST', '/api/v3/qualityprofile', { status: 201, body: { id: 7 } });
+    fake.on('PUT', '/api/v3/qualityprofile/7', { status: 202, body: { id: 7 } });
+    fake.on('DELETE', '/api/v3/qualityprofile/7', { body: {} });
+    const profile = { id: 7, name: 'Moody Blues' } as never;
+
+    await arr.listQualityProfiles();
+    await arr.getQualityProfileSchema();
+    await arr.createQualityProfile(profile);
+    await arr.updateQualityProfile(profile);
+    await arr.deleteQualityProfile(7);
+
+    expect(fake.requests.map((request) => `${request.method} ${request.path}`)).toEqual([
+      'GET /api/v3/qualityprofile',
+      'GET /api/v3/qualityprofile/schema',
+      'POST /api/v3/qualityprofile',
+      'PUT /api/v3/qualityprofile/7',
+      'DELETE /api/v3/qualityprofile/7',
+    ]);
+  });
+
+  it('reports a profile in use at once instead of retrying the deletion', async () => {
+    const { fake, client: arr } = setup();
+    fake.on('DELETE', '/api/v3/qualityprofile/3', {
+      status: 500,
+      body: { message: 'QualityProfile [3] is in use.' },
+    });
+
+    await expect(arr.deleteQualityProfile(3)).rejects.toMatchObject({ status: 500 });
+    expect(fake.count('DELETE')).toBe(1);
+  });
 });
 
 describe('patchSingleton', () => {

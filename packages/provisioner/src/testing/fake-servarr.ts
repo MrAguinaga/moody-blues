@@ -12,12 +12,16 @@ export interface FakeServarrOptions {
   existingFolders?: readonly string[];
   decypharrReachable?: boolean;
   pingFailures?: number;
+  factoryProfiles?: boolean;
+  profilesInUse?: readonly string[];
 }
 
 export interface FakeServarrState {
   config: Record<string, Resource>;
   rootFolders: Resource[];
   downloadClients: Resource[];
+  customFormats: Resource[];
+  qualityProfiles: Resource[];
 }
 
 export interface FakeServarr {
@@ -164,13 +168,206 @@ function defaultConfig(kind: ArrKind): Record<string, Resource> {
   return { host, downloadclient, mediamanagement, naming, ui, indexer };
 }
 
-const LANGUAGES = [
-  { id: -2, name: 'Original' },
-  { id: 1, name: 'English' },
-  { id: 2, name: 'French' },
-  { id: 3, name: 'Spanish' },
-  { id: 34, name: 'Spanish (Latino)' },
+function languagesFor(kind: ArrKind) {
+  return [
+    ...(kind === 'radarr' ? [{ id: -1, name: 'Any' }] : []),
+    { id: -2, name: 'Original' },
+    { id: 1, name: 'English' },
+    { id: 2, name: 'French' },
+    { id: 3, name: 'Spanish' },
+    { id: kind === 'radarr' ? 37 : 34, name: 'Spanish (Latino)' },
+  ];
+}
+
+type QualityEntry = readonly [id: number, name: string];
+type SchemaEntry = QualityEntry | { group: string; id: number; members: readonly QualityEntry[] };
+
+const SCHEMA_ENTRIES: Readonly<Record<ArrKind, readonly SchemaEntry[]>> = {
+  sonarr: [
+    [0, 'Unknown'],
+    [1, 'SDTV'],
+    {
+      group: 'WEB 480p',
+      id: 1000,
+      members: [
+        [12, 'WEBRip-480p'],
+        [8, 'WEBDL-480p'],
+      ],
+    },
+    [2, 'DVD'],
+    [13, 'Bluray-480p'],
+    [22, 'Bluray-576p'],
+    [4, 'HDTV-720p'],
+    [9, 'HDTV-1080p'],
+    [10, 'Raw-HD'],
+    {
+      group: 'WEB 720p',
+      id: 1001,
+      members: [
+        [14, 'WEBRip-720p'],
+        [5, 'WEBDL-720p'],
+      ],
+    },
+    [6, 'Bluray-720p'],
+    {
+      group: 'WEB 1080p',
+      id: 1002,
+      members: [
+        [15, 'WEBRip-1080p'],
+        [3, 'WEBDL-1080p'],
+      ],
+    },
+    [7, 'Bluray-1080p'],
+    [20, 'Bluray-1080p Remux'],
+    [16, 'HDTV-2160p'],
+    {
+      group: 'WEB 2160p',
+      id: 1003,
+      members: [
+        [17, 'WEBRip-2160p'],
+        [18, 'WEBDL-2160p'],
+      ],
+    },
+    [19, 'Bluray-2160p'],
+    [21, 'Bluray-2160p Remux'],
+  ],
+  radarr: [
+    [0, 'Unknown'],
+    [24, 'WORKPRINT'],
+    [25, 'CAM'],
+    [26, 'TELESYNC'],
+    [27, 'TELECINE'],
+    [29, 'REGIONAL'],
+    [28, 'DVDSCR'],
+    [1, 'SDTV'],
+    [2, 'DVD'],
+    [23, 'DVD-R'],
+    {
+      group: 'WEB 480p',
+      id: 1000,
+      members: [
+        [8, 'WEBDL-480p'],
+        [12, 'WEBRip-480p'],
+      ],
+    },
+    [20, 'Bluray-480p'],
+    [21, 'Bluray-576p'],
+    [4, 'HDTV-720p'],
+    {
+      group: 'WEB 720p',
+      id: 1001,
+      members: [
+        [5, 'WEBDL-720p'],
+        [14, 'WEBRip-720p'],
+      ],
+    },
+    [6, 'Bluray-720p'],
+    [9, 'HDTV-1080p'],
+    {
+      group: 'WEB 1080p',
+      id: 1002,
+      members: [
+        [3, 'WEBDL-1080p'],
+        [15, 'WEBRip-1080p'],
+      ],
+    },
+    [7, 'Bluray-1080p'],
+    [30, 'Remux-1080p'],
+    [16, 'HDTV-2160p'],
+    {
+      group: 'WEB 2160p',
+      id: 1003,
+      members: [
+        [18, 'WEBDL-2160p'],
+        [17, 'WEBRip-2160p'],
+      ],
+    },
+    [19, 'Bluray-2160p'],
+    [31, 'Remux-2160p'],
+    [22, 'BR-DISK'],
+    [10, 'Raw-HD'],
+  ],
+};
+
+const SPECIFICATION_IMPLEMENTATIONS = [
+  'ReleaseTitleSpecification',
+  'ReleaseGroupSpecification',
+  'LanguageSpecification',
+  'SourceSpecification',
+  'ResolutionSpecification',
+  'SizeSpecification',
+  'IndexerFlagSpecification',
 ];
+
+const SOURCE_OPTIONS: Readonly<Record<ArrKind, readonly QualityEntry[]>> = {
+  radarr: [
+    [0, 'UNKNOWN'],
+    [5, 'DVD'],
+    [6, 'TV'],
+    [7, 'WEBDL'],
+    [8, 'WEBRIP'],
+    [9, 'BLURAY'],
+  ],
+  sonarr: [
+    [0, 'Unknown'],
+    [1, 'Television'],
+    [3, 'Web'],
+    [4, 'WebRip'],
+    [5, 'DVD'],
+    [6, 'Bluray'],
+  ],
+};
+
+function qualityItem([id, name]: QualityEntry, allowed: boolean): Resource {
+  return { quality: { id, name }, items: [], allowed };
+}
+
+function schemaItems(kind: ArrKind, allowed: boolean): Resource[] {
+  return SCHEMA_ENTRIES[kind].map((entry) =>
+    'group' in entry
+      ? {
+          name: entry.group,
+          items: entry.members.map((member) => qualityItem(member, allowed)),
+          allowed,
+          id: entry.id,
+        }
+      : qualityItem(entry, allowed),
+  );
+}
+
+function selectField(name: string, options: readonly QualityEntry[]) {
+  return {
+    name,
+    type: 'select',
+    selectOptions: options.map(([value, optionName]) => ({ value, name: optionName })),
+  };
+}
+
+function specificationSchema(kind: ArrKind, languages: ReturnType<typeof languagesFor>) {
+  return SPECIFICATION_IMPLEMENTATIONS.map((implementation) => {
+    const fields =
+      implementation === 'LanguageSpecification'
+        ? [
+            selectField(
+              'value',
+              languages.map((language) => [language.id, language.name] as const),
+            ),
+            { name: 'exceptLanguage', type: 'checkbox', value: false },
+          ]
+        : implementation === 'SourceSpecification'
+          ? [selectField('value', SOURCE_OPTIONS[kind])]
+          : [{ name: 'value', type: 'textbox' }];
+    return { implementation, implementationName: implementation, fields };
+  });
+}
+
+function flattenQualityIds(items: Resource[]): number[] {
+  return items.flatMap((item) =>
+    item.quality
+      ? [(item.quality as { id: number }).id]
+      : flattenQualityIds(item.items as Resource[]),
+  );
+}
 
 function json(status: number, body?: unknown): Response {
   if (body === undefined || status === 204) {
@@ -215,10 +412,16 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
   let pingFailures = options.pingFailures ?? 0;
   let nextClientId = 1;
   let nextFolderId = 1;
+  const languages = languagesFor(kind);
+  const inUse = new Set(options.profilesInUse ?? []);
+  let nextFormatId = 1;
+  let nextProfileId = 1;
   const state: FakeServarrState = {
     config: defaultConfig(kind),
     rootFolders: [],
     downloadClients: [],
+    customFormats: [],
+    qualityProfiles: [],
   };
   const requests: FakeRequest[] = [];
   const user = { name: '', hash: '' };
@@ -299,6 +502,130 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
     return stored;
   }
 
+  const formatItems = (): Resource[] =>
+    state.customFormats.map((format) => ({ format: format.id, name: format.name, score: 0 }));
+
+  function validateFormat(body: Resource, existingId: number | undefined) {
+    const name = String(body.name ?? '');
+    if (!name) {
+      return validation('Name', "'Name' must not be empty.");
+    }
+    if (state.customFormats.some((format) => format.name === name && format.id !== existingId)) {
+      return validation('Name', 'Must be unique.');
+    }
+    const specifications = (body.specifications ?? []) as Resource[];
+    if (specifications.length === 0) {
+      return validation('Specifications', 'Must contain at least one Condition');
+    }
+    for (const specification of specifications) {
+      if (!specification.name) {
+        return validation(
+          'Specifications',
+          'Condition name(s) cannot be empty or consist of only spaces',
+        );
+      }
+      if (!SPECIFICATION_IMPLEMENTATIONS.includes(String(specification.implementation))) {
+        return validation(
+          'Implementation',
+          `${String(specification.implementation)} is not a valid specification implementation`,
+        );
+      }
+      if (!Array.isArray(specification.fields)) {
+        return validation(
+          'Specifications',
+          'Could not convert JSON to System.Collections.Generic.List<Field>',
+        );
+      }
+    }
+    return undefined;
+  }
+
+  function storeFormat(body: Resource, id: number): Resource {
+    return { ...structuredClone(body), id };
+  }
+
+  function validateProfile(body: Resource) {
+    if (!body.name) {
+      return validation('Name', "'Name' must not be empty.");
+    }
+    if (Number(body.minUpgradeFormatScore) < 1) {
+      return validation(
+        'MinUpgradeFormatScore',
+        "'Min Upgrade Format Score' must be greater than or equal to '1'.",
+      );
+    }
+    const items = (body.items ?? []) as Resource[];
+    const groups = items.filter((item) => !item.quality);
+    const groupIds = groups.map((group) => Number(group.id ?? 0));
+    if (groupIds.some((id) => id <= 0) || new Set(groupIds).size !== groupIds.length) {
+      return validation('Items', 'Groups must have a unique id greater than 0');
+    }
+    for (const group of groups) {
+      if (!group.name || (group.items as Resource[]).length < 2) {
+        return validation('Items', 'Groups must have a name and at least two qualities');
+      }
+    }
+    if (items.some((item) => item.quality && item.name)) {
+      return validation('Items', 'Individual qualities should not be named');
+    }
+    const used = flattenQualityIds(items);
+    if (new Set(used).size !== used.length) {
+      return validation('Items', 'Qualities can only be used once');
+    }
+    const expected = flattenQualityIds(schemaItems(kind, false));
+    if (expected.some((id) => !used.includes(id))) {
+      return validation('Items', 'Must contain all qualities');
+    }
+    if (!items.some((item) => item.allowed)) {
+      return validation('Items', 'Must contain at least one allowed quality');
+    }
+    const cutoffTargets = items
+      .filter((item) => item.allowed)
+      .map((item) => Number(item.quality ? (item.quality as { id: number }).id : item.id));
+    if (!cutoffTargets.includes(Number(body.cutoff))) {
+      return validation('Cutoff', 'Cutoff must be an allowed quality or group');
+    }
+    const scored = (body.formatItems ?? []) as Resource[];
+    const missing = state.customFormats.filter(
+      (format) => !scored.some((entry) => entry.format === format.id),
+    );
+    if (missing.length > 0) {
+      return validation(
+        'FormatItems',
+        `All Custom Formats and no extra ones need to be present inside your Profile! Missing: ${missing
+          .map((format) => String(format.name))
+          .join(', ')}`,
+      );
+    }
+    const reachable = scored.reduce((sum, entry) => sum + Math.max(Number(entry.score), 0), 0);
+    if (Number(body.minFormatScore) > reachable) {
+      return validation('MinFormatScore', 'Minimum Custom Format Score can never be satisfied');
+    }
+    return undefined;
+  }
+
+  function seedFactoryProfiles(): void {
+    for (const name of ['Any', 'SD', 'HD-720p', 'HD-1080p', 'Ultra-HD', 'HD - 720p/1080p']) {
+      state.qualityProfiles.push({
+        id: nextProfileId,
+        name,
+        upgradeAllowed: false,
+        cutoff: 1,
+        items: schemaItems(kind, true),
+        minFormatScore: 0,
+        cutoffFormatScore: 0,
+        minUpgradeFormatScore: 1,
+        formatItems: [],
+        ...(kind === 'radarr' ? { language: { id: -2, name: 'Original' } } : {}),
+      });
+      nextProfileId += 1;
+    }
+  }
+
+  if (options.factoryProfiles ?? true) {
+    seedFactoryProfiles();
+  }
+
   async function handle(request: FakeRequest): Promise<Response> {
     const { method, path, query } = request;
     const body = (request.body ?? {}) as Resource;
@@ -331,7 +658,104 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
       ]);
     }
     if (method === 'GET' && path === '/api/v3/language') {
-      return json(200, LANGUAGES);
+      return json(200, languages);
+    }
+
+    if (method === 'GET' && path === '/api/v3/customformat/schema') {
+      return json(200, specificationSchema(kind, languages));
+    }
+    if (path === '/api/v3/customformat') {
+      if (method === 'GET') {
+        return json(200, state.customFormats);
+      }
+      if (method === 'POST') {
+        const failure = validateFormat(body, undefined);
+        if (failure) {
+          return failure;
+        }
+        const stored = storeFormat(body, nextFormatId);
+        nextFormatId += 1;
+        state.customFormats.push(stored);
+        for (const profile of state.qualityProfiles) {
+          (profile.formatItems as Resource[]).push({
+            format: stored.id,
+            name: stored.name,
+            score: 0,
+          });
+        }
+        return json(201, stored);
+      }
+    }
+    const formatMatch = /^\/api\/v3\/customformat\/(\d+)$/.exec(path);
+    if (method === 'PUT' && formatMatch) {
+      const id = Number(formatMatch[1]);
+      if (!state.customFormats.some((format) => format.id === id)) {
+        return json(404);
+      }
+      const failure = validateFormat(body, id);
+      if (failure) {
+        return failure;
+      }
+      const stored = storeFormat(body, id);
+      state.customFormats = state.customFormats.map((format) =>
+        format.id === id ? stored : format,
+      );
+      return json(202, stored);
+    }
+
+    if (method === 'GET' && path === '/api/v3/qualityprofile/schema') {
+      return json(200, {
+        name: '',
+        upgradeAllowed: false,
+        cutoff: 0,
+        items: schemaItems(kind, false),
+        minFormatScore: 0,
+        cutoffFormatScore: 0,
+        minUpgradeFormatScore: 1,
+        formatItems: formatItems(),
+        ...(kind === 'radarr' ? { language: { id: -2, name: 'Original' } } : {}),
+      });
+    }
+    if (path === '/api/v3/qualityprofile') {
+      if (method === 'GET') {
+        return json(200, state.qualityProfiles);
+      }
+      if (method === 'POST') {
+        const failure = validateProfile(body);
+        if (failure) {
+          return failure;
+        }
+        const stored = { ...structuredClone(body), id: nextProfileId };
+        nextProfileId += 1;
+        state.qualityProfiles.push(stored);
+        return json(201, stored);
+      }
+    }
+    const profileMatch = /^\/api\/v3\/qualityprofile\/(\d+)$/.exec(path);
+    if (profileMatch) {
+      const id = Number(profileMatch[1]);
+      const current = state.qualityProfiles.find((profile) => profile.id === id);
+      if (!current) {
+        return json(404);
+      }
+      if (method === 'PUT') {
+        const failure = validateProfile(body);
+        if (failure) {
+          return failure;
+        }
+        const stored = { ...structuredClone(body), id };
+        state.qualityProfiles = state.qualityProfiles.map((profile) =>
+          profile.id === id ? stored : profile,
+        );
+        return json(202, stored);
+      }
+      if (method === 'DELETE') {
+        if (inUse.has(String(current.name))) {
+          return json(500, { message: `QualityProfile [${id}] is in use.` });
+        }
+        state.qualityProfiles = state.qualityProfiles.filter((profile) => profile.id !== id);
+        return json(200, {});
+      }
     }
 
     const configMatch = /^\/api\/v3\/config\/(\w+)(?:\/(\d+))?$/.exec(path);
