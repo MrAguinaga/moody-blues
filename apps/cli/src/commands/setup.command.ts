@@ -40,6 +40,7 @@ export interface SetupSettings {
   envFile?: string;
   home?: string;
   yes: boolean;
+  rotateCredentials?: boolean;
   mode: OutputMode;
   version: string;
 }
@@ -121,6 +122,7 @@ async function runNonInteractive(session: SetupSession, settings: SetupSettings)
     cliVersion: settings.version,
     runtime: createComposeRuntime({ home: session.home }),
     signal: controller.signal,
+    rotateCredentials: settings.rotateCredentials,
     onCheckUpdate: json
       ? undefined
       : (_report, check) => formatCheckLines(check).forEach((line) => console.log(line)),
@@ -210,6 +212,7 @@ async function runInteractive(session: SetupSession, settings: SetupSettings): P
     cliVersion: settings.version,
     runtime: createComposeRuntime({ home: session.home }),
     signal: controller.signal,
+    rotateCredentials: settings.rotateCredentials,
     onCheckUpdate: (checksReport) => show({ checks: [...checksReport.checks] }),
     onPipelineEvent: (event) =>
       show({ steps: applyPipelineEvent(progress.steps, event), busy: undefined }),
@@ -244,6 +247,7 @@ interface SetupCommandOptions {
   acmeEmail?: string;
   acmeStaging?: boolean;
   transcoding?: string;
+  rotateCredentials?: boolean;
 }
 
 export function createSetupCommand(version: string): Command {
@@ -258,6 +262,10 @@ export function createSetupCommand(version: string): Command {
     .option('--acme-email <email>', 'Email for HTTPS certificate notices (remote mode)')
     .option('--acme-staging', "Use the Let's Encrypt staging CA while testing")
     .option('--transcoding <mode>', 'Video transcoding: off, cpu or hardware')
+    .option(
+      '--rotate-credentials',
+      'Apply the administrator username and password again on every service',
+    )
     .action(async (options: SetupCommandOptions) => {
       const globals = setupCmd.optsWithGlobals();
       const requestedMode = resolveOutputMode(globals);
@@ -273,6 +281,7 @@ export function createSetupCommand(version: string): Command {
         envFile: options.envFile,
         home: options.home,
         yes: Boolean(globals.yes),
+        rotateCredentials: Boolean(options.rotateCredentials),
         mode: options.envFile && requestedMode === 'interactive' ? 'headless' : requestedMode,
         version,
       });

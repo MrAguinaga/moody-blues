@@ -4,6 +4,7 @@ import {
   type PipelineEvent,
   type PipelineReport,
   PROVISIONING_PIPELINE,
+  ROTATE_CREDENTIALS_FLAG,
   runPipeline,
 } from '@moody-blues/provisioner';
 
@@ -22,6 +23,7 @@ export interface SetupRunOptions {
   cliVersion: string;
   runtime: ContainerRuntime;
   signal: AbortSignal;
+  rotateCredentials?: boolean;
   onCheckUpdate?: CheckUpdateCallback;
   onPipelineEvent?: (event: PipelineEvent) => void;
 }
@@ -54,7 +56,7 @@ export async function runSetup(options: SetupRunOptions): Promise<SetupReport> {
       layout: createLayout(home),
       identity: config.host,
       runtime,
-      flags: new Map(),
+      flags: new Map(options.rotateCredentials ? [[ROTATE_CREDENTIALS_FLAG, true]] : []),
       cliVersion,
       hardware: detectContextHardware(config),
     },
