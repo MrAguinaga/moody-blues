@@ -88,6 +88,43 @@ describe.each([
     expect((await check.run(ctx)).status).toBe('error');
   });
 
+  it('ignores the indexer warnings that Prowlarr already reports', async () => {
+    const { ctx } = createTestContext({
+      stubs: {
+        [kind]: createStubArr(
+          '1.0',
+          [],
+          [
+            { source: 'IndexerStatusCheck', type: 'warning', message: 'down: 1337x' },
+            { source: 'IndexerLongTermStatusCheck', type: 'error', message: 'down: yts' },
+          ],
+        ),
+      },
+    });
+
+    expect((await check.run(ctx)).status).toBe('ok');
+  });
+
+  it('keeps the other indexer warnings', async () => {
+    const { ctx } = createTestContext({
+      stubs: {
+        [kind]: createStubArr(
+          '1.0',
+          [],
+          [
+            { source: 'IndexerStatusCheck', type: 'warning', message: 'down: 1337x' },
+            { source: 'IndexerRssCheck', type: 'warning', message: 'No indexers available' },
+          ],
+        ),
+      },
+    });
+
+    const result = await check.run(ctx);
+
+    expect(result.status).toBe('warning');
+    expect(result.details).toEqual(['warning IndexerRssCheck: No indexers available']);
+  });
+
   it('ignores the download client health while the storage profile is off', async () => {
     const health = [
       { source: 'DownloadClientCheck', type: 'error', message: 'cannot reach decypharr' },

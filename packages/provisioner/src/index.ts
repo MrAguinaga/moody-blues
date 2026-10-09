@@ -133,6 +133,7 @@ export {
   CLEANUP_ACTION,
   createDecypharrClient,
   createDecypharrVerifyStep,
+  type DecypharrAdminCredentials,
   type DecypharrArr,
   type DecypharrClient,
   type DecypharrClientOptions,

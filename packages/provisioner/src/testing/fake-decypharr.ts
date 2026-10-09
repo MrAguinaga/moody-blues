@@ -25,6 +25,7 @@ export interface FakeDecypharrState {
   webdavStatus: number;
   brokenEntries: Raw[];
   arrSource: string;
+  admin?: { username: string; password: string };
 }
 
 export interface FakeDecypharr {
@@ -105,6 +106,21 @@ export function createFakeDecypharr(options: FakeDecypharrOptions): FakeDecyphar
     }
     if (request.headers.authorization !== `Bearer ${apiToken}`) {
       return json(401, { error: 'Unauthorized' });
+    }
+    if (method === 'POST' && path === '/api/update-auth') {
+      const body = request.body as Raw | undefined;
+      const { username, password } = body ?? {};
+      if (
+        typeof username !== 'string' ||
+        typeof password !== 'string' ||
+        username === '' ||
+        password === '' ||
+        body?.confirm_password !== password
+      ) {
+        return json(400, { error: `Invalid credentials for ${String(password)}` });
+      }
+      state.admin = { username, password };
+      return json(200, { status: 'ok' });
     }
     if (method === 'GET' && path === '/api/config') {
       return json(200, structuredClone(state.config));

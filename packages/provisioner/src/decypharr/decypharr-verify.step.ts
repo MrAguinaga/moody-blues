@@ -1,5 +1,6 @@
 import { type ArrClientOptions, createArrClient } from '../arr/arr.client';
 import type { ArrKind } from '../arr/arr.types';
+import { ROTATE_CREDENTIALS_FLAG } from '../pipeline/pipeline.flags';
 import type {
   ProvisionContext,
   ProvisionScope,
@@ -72,13 +73,24 @@ export function createDecypharrVerifyStep(overrides: DecypharrStepOverrides = {}
           }),
         ]),
       ) as VerifyDecypharrOptions['arrs'];
+      const decypharr = createDecypharrClient({
+        baseUrl: SERVICE_CATALOG.decypharr.hostUrl,
+        apiToken: serviceKeys.decypharr,
+        signal,
+        ...overrides.decypharr,
+      });
+      const rotate = ctx.flags.get(ROTATE_CREDENTIALS_FLAG) === true;
+      if (rotate) {
+        ctx.reportProgress?.('Waiting for Decypharr');
+        await decypharr.waitReady({ signal, ...overrides.ready });
+        ctx.reportProgress?.('Rotating the Decypharr administrator');
+        await decypharr.updateAuth({
+          username: ctx.secrets.adminUsername,
+          password: ctx.secrets.adminPassword,
+        });
+      }
       const report = await verifyDecypharr(ctx, {
-        decypharr: createDecypharrClient({
-          baseUrl: SERVICE_CATALOG.decypharr.hostUrl,
-          apiToken: serviceKeys.decypharr,
-          signal,
-          ...overrides.decypharr,
-        }),
+        decypharr,
         arrs,
         serviceKeys,
         signal,
@@ -88,7 +100,10 @@ export function createDecypharrVerifyStep(overrides: DecypharrStepOverrides = {}
       if (!report.ok) {
         throw new DecypharrDriftError(describeFailures(report, ctx.layout.debridMountDir));
       }
-      return { status: 'unchanged', detail: describeReport(report) };
+      return {
+        status: rotate ? 'changed' : 'unchanged',
+        detail: rotate ? 'administrator credentials' : describeReport(report),
+      };
     },
   };
 }

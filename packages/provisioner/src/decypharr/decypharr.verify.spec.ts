@@ -9,6 +9,7 @@ import { provisionArr } from '../arr/arr.provision';
 import { ARR_KINDS, type ArrKind } from '../arr/arr.types';
 import { createDefaultConfig } from '../config';
 import { createLayout, type MbHomeLayout } from '../home';
+import { ROTATE_CREDENTIALS_FLAG } from '../pipeline/pipeline.flags';
 import { runPipeline } from '../pipeline/pipeline.runner';
 import type { ContainerRuntime, ProvisionContext } from '../pipeline/pipeline.types';
 import { createFakeDecypharr, type FakeDecypharrOptions } from '../testing/fake-decypharr';
@@ -447,6 +448,86 @@ describe('decypharr-verify step', () => {
         'warning: 1 broken repair entry awaiting automatic repair',
     );
     expectNoSecrets(report.steps[0]!.detail!);
+  });
+
+  it('sends no request but GET and PROPFIND without the rotation flag, run after run', async () => {
+    const harness = await createHarness();
+    const step = await stepWith(harness);
+
+    await runPipeline([step], storageContext(), { scope: 'setup' });
+    await runPipeline([step], storageContext(), { scope: 'setup' });
+
+    expect(harness.decypharr.writes()).toEqual([]);
+    expect(harness.decypharr.state.admin).toBeUndefined();
+  });
+
+  it('rotates the administrator first when the rotation flag is set', async () => {
+    const harness = await createHarness();
+    const step = await stepWith(harness);
+    const ctx = storageContext();
+    ctx.flags.set(ROTATE_CREDENTIALS_FLAG, true);
+
+    const report = await runPipeline([step], ctx, { scope: 'setup' });
+
+    expect(report.success).toBe(true);
+    expect(report.steps[0]).toMatchObject({
+      id: 'decypharr-verify',
+      status: 'changed',
+      detail: 'administrator credentials',
+    });
+    const writes = harness.decypharr.writes();
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toMatchObject({
+      method: 'POST',
+      path: '/api/update-auth',
+      headers: { authorization: `Bearer ${KEYS.decypharr}` },
+      body: {
+        username: 'Admin',
+        password: 'p@ss word',
+        confirm_password: 'p@ss word',
+        token_only: false,
+      },
+    });
+    expect(harness.decypharr.requests.indexOf(writes[0]!)).toBeLessThan(
+      harness.decypharr.requests.findIndex((request) => request.path === '/api/config'),
+    );
+    expect(harness.decypharr.state.admin).toEqual({ username: 'Admin', password: 'p@ss word' });
+    expect(harness.decypharr.apiToken).toBe(KEYS.decypharr);
+    expect(JSON.stringify(report)).not.toContain('p@ss word');
+  });
+
+  it('keeps the password out of the error when the rotation fails', async () => {
+    const harness = await createHarness();
+    const step = createDecypharrVerifyStep({
+      decypharr: {
+        fetch: async (input, init) =>
+          init?.method === 'POST'
+            ? new Response('rejected p@ss word', { status: 400 })
+            : harness.decypharr.fetch(input, init),
+        sleep: noSleep,
+      },
+      ready: { sleep: noSleep },
+    });
+    const ctx = storageContext();
+    ctx.flags.set(ROTATE_CREDENTIALS_FLAG, true);
+
+    const report = await runPipeline([step], ctx, { scope: 'setup' });
+
+    expect(report.success).toBe(false);
+    expect(report.error).toContain('400');
+    expect(report.error).not.toContain('p@ss word');
+  });
+
+  it('does not rotate when storage is disabled, even with the flag', async () => {
+    const harness = await createHarness();
+    const step = await stepWith(harness);
+    const ctx = createContext({ layout });
+    ctx.flags.set(ROTATE_CREDENTIALS_FLAG, true);
+
+    const report = await runPipeline([step], ctx, { scope: 'setup' });
+
+    expect(report.steps[0]).toMatchObject({ status: 'skipped' });
+    expect(harness.decypharr.requests).toHaveLength(0);
   });
 
   it('fails the pipeline with the complete drift list and the reset hint', async () => {

@@ -23,6 +23,11 @@ export const DOWNLOAD_CLIENT_HEALTH_SOURCES: readonly string[] = [
   'DownloadClientStatusCheck',
 ];
 
+export const INDEXER_HEALTH_SOURCES: readonly string[] = [
+  'IndexerStatusCheck',
+  'IndexerLongTermStatusCheck',
+];
+
 export function splitHealth(
   entries: readonly HealthResource[],
   ignoredSources: readonly string[] = [],
@@ -36,7 +41,10 @@ export function splitHealth(
 }
 
 function ignoredHealthSources(ctx: DoctorContext): string[] {
-  return storageDisabled(ctx) ? [...DOWNLOAD_CLIENT_HEALTH_SOURCES] : [];
+  return [
+    ...INDEXER_HEALTH_SOURCES,
+    ...(storageDisabled(ctx) ? DOWNLOAD_CLIENT_HEALTH_SOURCES : []),
+  ];
 }
 
 function failure(service: string, label: string, error: unknown): DoctorOutcome {

@@ -1,5 +1,6 @@
 export {
   createDecypharrClient,
+  type DecypharrAdminCredentials,
   type DecypharrClient,
   type DecypharrClientOptions,
   DecypharrConfigInvalidError,

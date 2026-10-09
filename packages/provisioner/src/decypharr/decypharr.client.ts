@@ -32,6 +32,12 @@ export interface DecypharrClient {
   listArrs(): Promise<DecypharrArr[]>;
   propfindWebdav(): Promise<number>;
   listBrokenEntries(): Promise<RepairHealthEntry[]>;
+  updateAuth(credentials: DecypharrAdminCredentials): Promise<void>;
+}
+
+export interface DecypharrAdminCredentials {
+  username: string;
+  password: string;
 }
 
 export class DecypharrConfigInvalidError extends Error {
@@ -49,6 +55,7 @@ type Raw = Record<string, unknown>;
 
 const WEBDAV_PATH = '/webdav/';
 const REPAIR_HEALTH_PATH = '/api/repair/health';
+const UPDATE_AUTH_PATH = '/api/update-auth';
 const WIZARD_PATTERN = /setup wizard/i;
 const LIST_WRAPPER_KEYS: readonly string[] = ['entries', 'data', 'items', 'health', 'arrs'];
 
@@ -173,7 +180,7 @@ export function createDecypharrClient(options: DecypharrClientOptions): Decyphar
   });
   const authorization = { Authorization: `Bearer ${options.apiToken}` };
 
-  function sanitize(error: unknown): unknown {
+  function sanitize(error: unknown, extraSecrets: readonly string[] = []): unknown {
     if (
       error instanceof HttpStatusError &&
       error.status === 503 &&
@@ -181,8 +188,13 @@ export function createDecypharrClient(options: DecypharrClientOptions): Decyphar
     ) {
       return new DecypharrConfigInvalidError(error.url);
     }
-    if (error instanceof ProvisionHttpError && error.message.includes(options.apiToken)) {
-      return new Error(error.message.split(options.apiToken).join('***'));
+    if (error instanceof ProvisionHttpError) {
+      const secrets = [options.apiToken, ...extraSecrets].filter((secret) => secret !== '');
+      if (secrets.some((secret) => error.message.includes(secret))) {
+        return new Error(
+          secrets.reduce((current, secret) => current.split(secret).join('***'), error.message),
+        );
+      }
     }
     return error;
   }
@@ -224,6 +236,17 @@ export function createDecypharrClient(options: DecypharrClientOptions): Decyphar
           responseType: 'status',
         }),
       ),
+    updateAuth: async ({ username, password }) => {
+      try {
+        await http.post(
+          UPDATE_AUTH_PATH,
+          { username, password, confirm_password: password, token_only: false },
+          { headers: authorization, retry: { attempts: 1 }, responseType: 'status' },
+        );
+      } catch (error) {
+        throw sanitize(error, [password]);
+      }
+    },
     listBrokenEntries: async () =>
       parseRepairEntries(await authed(REPAIR_HEALTH_PATH, { query: { status: 'broken' } })),
   };

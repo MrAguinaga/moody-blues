@@ -166,6 +166,53 @@ describe('createDecypharrClient authenticated calls', () => {
   });
 });
 
+describe('createDecypharrClient updateAuth', () => {
+  const PASSWORD = 'p@ss word-123';
+
+  it('posts the administrator with the Bearer token and keeps the API token', async () => {
+    const { server, client } = setup();
+
+    await client.updateAuth({ username: 'Admin', password: PASSWORD });
+
+    expect(server.writes()).toHaveLength(1);
+    expect(server.writes()[0]).toMatchObject({
+      method: 'POST',
+      path: '/api/update-auth',
+      headers: { authorization: `Bearer ${TOKEN}` },
+      body: {
+        username: 'Admin',
+        password: PASSWORD,
+        confirm_password: PASSWORD,
+        token_only: false,
+      },
+    });
+    expect(server.state.admin).toEqual({ username: 'Admin', password: PASSWORD });
+    expect(server.apiToken).toBe(TOKEN);
+  });
+
+  it('is not retried and masks the password and the token in the error', async () => {
+    const fake = createFakeFetch();
+    fake.on('POST', '/api/update-auth', { status: 500, text: `bad ${PASSWORD} ${TOKEN}` });
+    const client = createDecypharrClient({
+      baseUrl: 'http://127.0.0.1:8282',
+      apiToken: TOKEN,
+      fetch: fake.fetch,
+      sleep: noSleep,
+    });
+
+    const failure = await client
+      .updateAuth({ username: 'Admin', password: PASSWORD })
+      .catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).toContain('500');
+    expect((failure as Error).message).toContain('***');
+    expect((failure as Error).message).not.toContain(PASSWORD);
+    expect((failure as Error).message).not.toContain(TOKEN);
+    expect(fake.count('POST', '/api/update-auth')).toBe(1);
+  });
+});
+
 describe('response parsing', () => {
   it('treats absent configuration keys as their defaults', () => {
     expect(parseConfigView({})).toEqual({
