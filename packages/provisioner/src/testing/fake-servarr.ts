@@ -22,6 +22,7 @@ export interface FakeServarrState {
   downloadClients: Resource[];
   customFormats: Resource[];
   qualityProfiles: Resource[];
+  releaseProfiles: Resource[];
 }
 
 export interface FakeServarr {
@@ -416,12 +417,14 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
   const inUse = new Set(options.profilesInUse ?? []);
   let nextFormatId = 1;
   let nextProfileId = 1;
+  let nextReleaseProfileId = 1;
   const state: FakeServarrState = {
     config: defaultConfig(kind),
     rootFolders: [],
     downloadClients: [],
     customFormats: [],
     qualityProfiles: [],
+    releaseProfiles: [],
   };
   const requests: FakeRequest[] = [];
   const user = { name: '', hash: '' };
@@ -756,6 +759,30 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
         state.qualityProfiles = state.qualityProfiles.filter((profile) => profile.id !== id);
         return json(200, {});
       }
+    }
+
+    if (path === '/api/v3/releaseprofile') {
+      if (method === 'GET') {
+        return json(200, state.releaseProfiles);
+      }
+      if (method === 'POST') {
+        const stored = { ...structuredClone(body), id: nextReleaseProfileId };
+        nextReleaseProfileId += 1;
+        state.releaseProfiles.push(stored);
+        return json(201, stored);
+      }
+    }
+    const releaseProfileMatch = /^\/api\/v3\/releaseprofile\/(\d+)$/.exec(path);
+    if (releaseProfileMatch && method === 'PUT') {
+      const id = Number(releaseProfileMatch[1]);
+      if (!state.releaseProfiles.some((profile) => profile.id === id)) {
+        return json(404);
+      }
+      const stored = { ...structuredClone(body), id };
+      state.releaseProfiles = state.releaseProfiles.map((profile) =>
+        profile.id === id ? stored : profile,
+      );
+      return json(202, stored);
     }
 
     const configMatch = /^\/api\/v3\/config\/(\w+)(?:\/(\d+))?$/.exec(path);

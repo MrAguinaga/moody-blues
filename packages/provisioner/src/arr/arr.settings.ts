@@ -1,9 +1,12 @@
 import { SERVICE_CATALOG } from '../services/service-catalog';
-import type { ArrKind, LanguageResource } from './arr.types';
+import type { ArrKind, LanguageResource, ReleaseProfileResource } from './arr.types';
 
 export const DECYPHARR_CLIENT_NAME = 'Decypharr';
 export const DECYPHARR_IMPLEMENTATION = 'QBittorrent';
 export const FALLBACK_UI_LANGUAGE = 'English';
+
+export const RELEASE_EXCLUSIONS_NAME = 'Moody Blues exclusions';
+export const EXCLUDED_RELEASE_TERMS: readonly string[] = ['/\\b(yts|yify)\\b/i'];
 
 export const ROOT_FOLDER_PATHS: Readonly<Record<ArrKind, string>> = {
   sonarr: '/data/media/tv',
@@ -127,6 +130,17 @@ export function buildIndexerSettings(kind: ArrKind): Record<string, unknown> {
     maximumSize: 0,
     rssSyncInterval: 30,
     ...(kind === 'radarr' ? { allowHardcodedSubs: false, availabilityDelay: 0 } : {}),
+  };
+}
+
+export function buildReleaseExclusions(): ReleaseProfileResource {
+  return {
+    name: RELEASE_EXCLUSIONS_NAME,
+    enabled: true,
+    required: [],
+    ignored: [...EXCLUDED_RELEASE_TERMS],
+    indexerId: 0,
+    tags: [],
   };
 }
 

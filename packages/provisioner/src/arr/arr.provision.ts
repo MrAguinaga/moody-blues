@@ -20,13 +20,15 @@ import {
   buildIndexerSettings,
   buildMediaManagementSettings,
   buildNamingSettings,
+  buildReleaseExclusions,
   buildUiSettings,
   DECYPHARR_CLIENT_NAME,
   DECYPHARR_IMPLEMENTATION,
+  RELEASE_EXCLUSIONS_NAME,
   resolveUiLanguageId,
   ROOT_FOLDER_PATHS,
 } from './arr.settings';
-import type { ArrKind, DownloadClientResource } from './arr.types';
+import type { ArrKind, DownloadClientResource, ReleaseProfileResource } from './arr.types';
 
 const ARR_STEP_SCOPES: readonly ProvisionScope[] = ['setup', 'reset', 'config', 'update'];
 const ARR_TITLES: Readonly<Record<ArrKind, string>> = {
@@ -115,6 +117,38 @@ async function ensureDecypharrClient(
   return 'created download client without connection test';
 }
 
+const sameSet = <T>(left: readonly T[], right: readonly T[]) =>
+  left.every((item) => right.includes(item)) && right.every((item) => left.includes(item));
+
+function releaseProfileMatches(
+  existing: ReleaseProfileResource,
+  desired: ReleaseProfileResource,
+): boolean {
+  return (
+    existing.enabled === desired.enabled &&
+    existing.indexerId === desired.indexerId &&
+    sameSet(existing.ignored, desired.ignored) &&
+    sameSet(existing.required, desired.required) &&
+    sameSet(existing.tags, desired.tags)
+  );
+}
+
+async function ensureReleaseExclusions(client: ArrClient): Promise<string | undefined> {
+  const desired = buildReleaseExclusions();
+  const existing = (await client.listReleaseProfiles()).find(
+    (candidate) => candidate.name === RELEASE_EXCLUSIONS_NAME,
+  );
+  if (!existing) {
+    await client.createReleaseProfile(desired);
+    return 'release exclusions';
+  }
+  if (releaseProfileMatches(existing, desired)) {
+    return undefined;
+  }
+  await client.updateReleaseProfile({ ...existing, ...desired });
+  return 'release exclusions';
+}
+
 export async function provisionArr(
   ctx: ProvisionContext,
   options: ProvisionArrOptions,
@@ -178,6 +212,9 @@ export async function provisionArr(
   record(
     (await patchSingleton(client, 'indexer', buildIndexerSettings(kind))) && 'indexer options',
   );
+
+  progress('Configuring release exclusions');
+  record(await ensureReleaseExclusions(client));
 
   const issues = (await client.getHealth()).filter((entry) => entry.type !== 'ok');
   if (issues.length > 0) {

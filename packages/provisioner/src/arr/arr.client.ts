@@ -11,6 +11,7 @@ import type {
   HealthResource,
   LanguageResource,
   QualityProfileResource,
+  ReleaseProfileResource,
   RootFolderResource,
   SpecificationSchemaResource,
   SystemStatusResource,
@@ -62,6 +63,9 @@ export interface ArrClient {
   createQualityProfile(resource: QualityProfileResource): Promise<QualityProfileResource>;
   updateQualityProfile(resource: QualityProfileResource): Promise<QualityProfileResource>;
   deleteQualityProfile(id: number): Promise<void>;
+  listReleaseProfiles(): Promise<ReleaseProfileResource[]>;
+  createReleaseProfile(resource: ReleaseProfileResource): Promise<ReleaseProfileResource>;
+  updateReleaseProfile(resource: ReleaseProfileResource): Promise<ReleaseProfileResource>;
 }
 
 export function createArrClient(options: ArrClientOptions): ArrClient {
@@ -112,6 +116,10 @@ export function createArrClient(options: ArrClientOptions): ArrClient {
     // A profile in use answers 500 deterministically, so retrying only delays the report.
     deleteQualityProfile: (id) =>
       http.delete(`${API_ROOT}/qualityprofile/${id}`, { retry: { attempts: 1 } }),
+    listReleaseProfiles: () => http.get(`${API_ROOT}/releaseprofile`),
+    createReleaseProfile: (resource) => http.post(`${API_ROOT}/releaseprofile`, resource),
+    updateReleaseProfile: (resource) =>
+      http.put(`${API_ROOT}/releaseprofile/${resource.id}`, resource),
   };
 }
 

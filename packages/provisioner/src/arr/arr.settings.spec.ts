@@ -6,7 +6,10 @@ import {
   buildIndexerSettings,
   buildMediaManagementSettings,
   buildNamingSettings,
+  buildReleaseExclusions,
   buildUiSettings,
+  EXCLUDED_RELEASE_TERMS,
+  RELEASE_EXCLUSIONS_NAME,
   resolveUiLanguageId,
   ROOT_FOLDER_PATHS,
   uiLanguageName,
@@ -185,5 +188,47 @@ describe('ui language', () => {
 describe('ROOT_FOLDER_PATHS', () => {
   it('uses the shared media tree', () => {
     expect(ROOT_FOLDER_PATHS).toEqual({ sonarr: '/data/media/tv', radarr: '/data/media/movies' });
+  });
+});
+
+describe('buildReleaseExclusions', () => {
+  const toRegExp = (term: string) => {
+    const match = /^\/(.+)\/([a-z]*)$/.exec(term);
+    return new RegExp(match![1]!, match![2]);
+  };
+  const isIgnored = (title: string) =>
+    EXCLUDED_RELEASE_TERMS.some((term) => toRegExp(term).test(title));
+
+  it('describes one enabled profile for every indexer and every tag', () => {
+    expect(buildReleaseExclusions()).toEqual({
+      name: RELEASE_EXCLUSIONS_NAME,
+      enabled: true,
+      required: [],
+      ignored: [...EXCLUDED_RELEASE_TERMS],
+      indexerId: 0,
+      tags: [],
+    });
+  });
+
+  it.each([
+    'Sintel (2010) 720p BRRip x264 -YTS',
+    'Sintel.2010.720p.BluRay.x264.AAC-[YTS.MX]',
+    'Night of the Living Dead (1968) 1080p BRRip x264 -YTS',
+    'Night.Of.The.Living.Dead.1968.1080p.BluRay.x264-[YTS.AM]',
+    'Night.of.the.Living.Dead.1968.720p.BluRay.x264-YIFY',
+    'Night of the Living Dead 1968 720p BluRay x264 - YIFY',
+    'Night.of.the.Living.Dead.1968.720p.BluRay.x264-yify',
+  ])('ignores %s', (title) => {
+    expect(isIgnored(title)).toBe(true);
+  });
+
+  it.each([
+    'Cysts.2015.1080p.BluRay.x264-GROUP',
+    'The.Yifyland.Story.2012.1080p.WEB-DL.x264-GROUP',
+    'Sintel.2010.1080p.BluRay.x264-SPARKS',
+    'Night.of.the.Living.Dead.1968.1080p.BluRay.x264-AMIABLE',
+    'Pointsyts.2001.720p.WEB.h264-ETHEL',
+  ])('keeps %s', (title) => {
+    expect(isIgnored(title)).toBe(false);
   });
 });

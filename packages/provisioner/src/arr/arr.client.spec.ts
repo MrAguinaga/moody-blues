@@ -137,6 +137,32 @@ describe('createArrClient', () => {
     ]);
   });
 
+  it('reads, creates and updates release profiles by id', async () => {
+    const { fake, client: arr } = setup();
+    fake.on('GET', '/api/v3/releaseprofile', { body: [] });
+    fake.on('POST', '/api/v3/releaseprofile', { status: 201, body: { id: 2 } });
+    fake.on('PUT', '/api/v3/releaseprofile/2', { status: 202, body: { id: 2 } });
+    const profile = {
+      name: 'Moody Blues exclusions',
+      enabled: true,
+      required: [],
+      ignored: ['/yts/i'],
+      indexerId: 0,
+      tags: [],
+    };
+
+    await arr.listReleaseProfiles();
+    await arr.createReleaseProfile(profile);
+    await arr.updateReleaseProfile({ ...profile, id: 2 });
+
+    expect(fake.requests.map((request) => `${request.method} ${request.path}`)).toEqual([
+      'GET /api/v3/releaseprofile',
+      'POST /api/v3/releaseprofile',
+      'PUT /api/v3/releaseprofile/2',
+    ]);
+    expect(fake.requests[2]?.body).toMatchObject({ id: 2, ignored: ['/yts/i'] });
+  });
+
   it('reports a profile in use at once instead of retrying the deletion', async () => {
     const { fake, client: arr } = setup();
     fake.on('DELETE', '/api/v3/qualityprofile/3', {

@@ -13,6 +13,7 @@ import type { ContainerRuntime, ProvisionContext } from '../pipeline/pipeline.ty
 import { createFakeServarr, type FakeServarr } from '../testing/fake-servarr';
 import { createArrClient } from './arr.client';
 import { createArrProvisionStep, provisionArr } from './arr.provision';
+import { buildReleaseExclusions, EXCLUDED_RELEASE_TERMS } from './arr.settings';
 import { ARR_STEPS } from './arr.steps';
 import { ARR_KINDS, type ArrKind } from './arr.types';
 
@@ -260,6 +261,54 @@ describe.each(ARR_KINDS)('provisionArr (%s)', (kind) => {
 
     expect(error).toBeInstanceOf(HttpStatusError);
     expect((error as HttpStatusError).message).toContain('Path: Folder');
+  });
+
+  it('creates the release exclusions profile and reports it', async () => {
+    const outcome = await run(kind, server);
+
+    expect(outcome.detail).toContain('release exclusions');
+    expect(server.state.releaseProfiles).toEqual([{ ...buildReleaseExclusions(), id: 1 }]);
+  });
+
+  it('repairs drifted release exclusions with a single PUT on the same profile', async () => {
+    await run(kind, server);
+    server.state.releaseProfiles = [
+      { ...buildReleaseExclusions(), id: 1, enabled: false, ignored: ['other'], tags: [4] },
+    ];
+    const before = server.writes().length;
+
+    const outcome = await run(kind, server);
+
+    expect(outcome).toEqual({ status: 'changed', detail: 'release exclusions' });
+    const writes = server.writes().slice(before);
+    expect(writes.map((request) => `${request.method} ${request.path}`)).toEqual([
+      'PUT /api/v3/releaseprofile/1',
+    ]);
+    expect(server.state.releaseProfiles).toEqual([{ ...buildReleaseExclusions(), id: 1 }]);
+  });
+
+  it('ignores the order of the terms and leaves other release profiles untouched', async () => {
+    const foreign = {
+      id: 7,
+      name: 'Mine',
+      enabled: true,
+      required: ['x265'],
+      ignored: ['cam'],
+      indexerId: 3,
+      tags: [1],
+    };
+    server.state.releaseProfiles = [
+      foreign,
+      { ...buildReleaseExclusions(), id: 8, ignored: [...EXCLUDED_RELEASE_TERMS].reverse() },
+    ];
+    await run(kind, server);
+    const before = server.writes().length;
+
+    await run(kind, server);
+
+    expect(server.writes()).toHaveLength(before);
+    expect(server.state.releaseProfiles[0]).toEqual(foreign);
+    expect(server.state.releaseProfiles).toHaveLength(2);
   });
 
   it('reports progress for every section', async () => {

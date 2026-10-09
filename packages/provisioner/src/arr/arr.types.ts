@@ -77,6 +77,16 @@ export interface CustomFormatResource {
   specifications: CustomFormatSpecificationResource[];
 }
 
+export interface ReleaseProfileResource {
+  id?: number;
+  name: string;
+  enabled: boolean;
+  required: string[];
+  ignored: string[];
+  indexerId: number;
+  tags: number[];
+}
+
 export interface SpecificationSchemaField extends ProviderField {
   selectOptions?: SelectOption[];
 }
