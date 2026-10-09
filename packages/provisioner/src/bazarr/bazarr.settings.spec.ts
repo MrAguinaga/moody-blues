@@ -22,6 +22,13 @@ function matching(): BazarrSettings {
       serie_default_profile: 1,
       movie_default_enabled: true,
       movie_default_profile: 1,
+      minimum_score: 80,
+      minimum_score_movie: 70,
+    },
+    subsync: {
+      use_subsync: true,
+      use_subsync_threshold: false,
+      use_subsync_movie_threshold: false,
     },
     auth: {
       type: 'form',
@@ -92,5 +99,30 @@ describe('findDrift', () => {
         (entry) => `${entry.section}.${entry.key}`,
       ),
     ).toEqual(['radarr.ip']);
+  });
+
+  it('groups the subtitle synchronization drift and leaves the movie score alone', () => {
+    const settings = matching();
+    settings.subsync = {
+      use_subsync: false,
+      use_subsync_threshold: true,
+      use_subsync_movie_threshold: true,
+    };
+    settings.general = { ...settings.general, minimum_score: 90 };
+
+    const drift = findDrift(settings, desiredSettings(settings, input));
+
+    expect(drift.map((entry) => `${entry.section}.${entry.key}=${String(entry.value)}`)).toEqual([
+      'subsync.use_subsync=true',
+      'subsync.use_subsync_threshold=false',
+      'subsync.use_subsync_movie_threshold=false',
+      'general.minimum_score=80',
+    ]);
+    expect(new Set(drift.map((entry) => entry.group))).toEqual(
+      new Set(['subtitle synchronization']),
+    );
+    expect(desiredSettings(settings, input).map((entry) => entry.key)).not.toContain(
+      'minimum_score_movie',
+    );
   });
 });

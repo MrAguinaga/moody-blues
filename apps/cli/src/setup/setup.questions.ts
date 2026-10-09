@@ -38,7 +38,11 @@ export const MODE_OPTIONS: QuestionOption[] = [
 ];
 
 export const TRANSCODING_OPTIONS: QuestionOption[] = [
-  { value: 'off', label: 'Off', hint: 'direct play only, lowest CPU usage (recommended)' },
+  {
+    value: 'off',
+    label: 'Off',
+    hint: 'no video re-encoding, remux and audio allowed (recommended)',
+  },
   { value: 'cpu', label: 'CPU', hint: 'software transcoding' },
   { value: 'hardware', label: 'Hardware', hint: 'GPU acceleration (VAAPI or NVIDIA)' },
 ];

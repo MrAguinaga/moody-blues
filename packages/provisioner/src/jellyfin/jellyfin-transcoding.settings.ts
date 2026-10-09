@@ -14,13 +14,12 @@ export class HardwareAccelerationMissingError extends Error {
 }
 
 export function buildPlaybackPolicy(mode: TranscodingMode): PlaybackPolicy {
-  // Jellyfin still transcodes video when only the video permission is off, so Direct Play
-  // is enforced by withdrawing the audio and remux permissions as well.
-  const allowed = mode !== 'off';
+  // Jellyfin 12.2 does not enforce the video permission, so the CPU limit in Compose is
+  // what contains an unexpected re-encode in off mode.
   return {
-    EnableVideoPlaybackTranscoding: allowed,
-    EnableAudioPlaybackTranscoding: allowed,
-    EnablePlaybackRemuxing: allowed,
+    EnableVideoPlaybackTranscoding: mode !== 'off',
+    EnableAudioPlaybackTranscoding: true,
+    EnablePlaybackRemuxing: true,
   };
 }
 

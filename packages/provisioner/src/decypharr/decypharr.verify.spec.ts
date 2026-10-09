@@ -57,6 +57,7 @@ async function provisionedServarr(kind: ArrKind): Promise<FakeServarr> {
       sleep: noSleep,
     }),
     apiKey: server.apiKey,
+    jellyfinApiKey: 'jellyfin-key',
     signal: new AbortController().signal,
     ready: { sleep: noSleep },
   });

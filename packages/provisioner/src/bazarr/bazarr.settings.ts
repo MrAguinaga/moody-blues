@@ -9,6 +9,9 @@ export const OPENSUBTITLES_PROVIDER = 'opensubtitlescom';
 
 export const DEFAULT_PROFILES_GROUP = 'default profiles';
 
+export const SUBTITLE_SYNC_GROUP = 'subtitle synchronization';
+export const SERIES_MINIMUM_SCORE = 80;
+
 const MANAGED_PROVIDERS: readonly string[] = [GESTDOWN_PROVIDER, OPENSUBTITLES_PROVIDER];
 
 export interface DesiredSetting {
@@ -97,6 +100,20 @@ export function desiredSettings(
       key: 'enabled_providers',
       value: desiredProviders(currentProviders(settings), opensubtitles !== undefined),
       group: 'subtitle providers',
+    },
+    { section: 'subsync', key: 'use_subsync', value: true, group: SUBTITLE_SYNC_GROUP },
+    { section: 'subsync', key: 'use_subsync_threshold', value: false, group: SUBTITLE_SYNC_GROUP },
+    {
+      section: 'subsync',
+      key: 'use_subsync_movie_threshold',
+      value: false,
+      group: SUBTITLE_SYNC_GROUP,
+    },
+    {
+      section: 'general',
+      key: 'minimum_score',
+      value: SERIES_MINIMUM_SCORE,
+      group: SUBTITLE_SYNC_GROUP,
     },
     ...(opensubtitles
       ? [

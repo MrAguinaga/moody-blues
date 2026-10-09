@@ -8,6 +8,14 @@ export const FALLBACK_UI_LANGUAGE = 'English';
 export const RELEASE_EXCLUSIONS_NAME = 'Moody Blues exclusions';
 export const EXCLUDED_RELEASE_TERMS: readonly string[] = ['/\\b(yts|yify)\\b/i'];
 
+export const JELLYFIN_CONNECTION_NAME = 'Jellyfin';
+export const JELLYFIN_IMPLEMENTATION = 'MediaBrowser';
+
+const JELLYFIN_TRIGGERS: Readonly<Record<ArrKind, readonly string[]>> = {
+  sonarr: ['onDownload', 'onUpgrade', 'onRename', 'onSeriesDelete', 'onEpisodeFileDelete'],
+  radarr: ['onDownload', 'onUpgrade', 'onRename', 'onMovieDelete', 'onMovieFileDelete'],
+};
+
 export const ROOT_FOLDER_PATHS: Readonly<Record<ArrKind, string>> = {
   sonarr: '/data/media/tv',
   radarr: '/data/media/movies',
@@ -70,6 +78,41 @@ export function buildDecypharrClient(kind: ArrKind, apiKey: string): DecypharrCl
       tags: [],
     },
     fields: { ...comparableFields, password: apiKey },
+    comparableFields,
+  };
+}
+
+export interface JellyfinConnectionSettings {
+  properties: {
+    name: string;
+    implementation: string;
+    configContract: string;
+    tags: number[];
+  } & Record<string, unknown>;
+  fields: Record<string, unknown>;
+  comparableFields: Record<string, unknown>;
+}
+
+export function buildJellyfinConnection(kind: ArrKind, apiKey: string): JellyfinConnectionSettings {
+  const comparableFields = {
+    host: SERVICE_CATALOG.jellyfin.id,
+    port: SERVICE_CATALOG.jellyfin.port,
+    useSsl: false,
+    urlBase: '',
+    notify: false,
+    updateLibrary: true,
+    mapFrom: '',
+    mapTo: '',
+  };
+  return {
+    properties: {
+      name: JELLYFIN_CONNECTION_NAME,
+      implementation: JELLYFIN_IMPLEMENTATION,
+      configContract: 'MediaBrowserSettings',
+      tags: [],
+      ...Object.fromEntries(JELLYFIN_TRIGGERS[kind].map((trigger) => [trigger, true])),
+    },
+    fields: { ...comparableFields, apiKey },
     comparableFields,
   };
 }

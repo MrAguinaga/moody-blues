@@ -99,6 +99,14 @@ export interface DownloadClientResource extends ProviderResource {
   tags: number[];
 }
 
+export interface NotificationResource extends ProviderResource {
+  id?: number;
+  name: string;
+  implementation: string;
+  configContract: string;
+  tags: number[];
+}
+
 export interface SelectOption {
   value: number;
   name: string;

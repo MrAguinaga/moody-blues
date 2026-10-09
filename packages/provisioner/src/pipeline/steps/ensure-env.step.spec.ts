@@ -83,4 +83,46 @@ describe('ensureEnvStep', () => {
 
     expect(keys.indexOf('JELLYFIN_API_KEY')).toBe(keys.indexOf('SEERR_API_KEY') + 1);
   });
+
+  it('writes the CPU limit as the Docker cores minus one after the other host keys', async () => {
+    ctx.dockerCpus = 6;
+
+    await ensureEnvStep.run(ctx, new AbortController().signal);
+
+    const keys = readFileSync(layout.envFile, 'utf8')
+      .split('\n')
+      .map((line) => line.split('=')[0]);
+    expect(readEnv(layout.envFile).JELLYFIN_CPU_LIMIT).toBe('5');
+    expect(keys.indexOf('JELLYFIN_CPU_LIMIT')).toBe(keys.indexOf('MNT_PROPAGATION') + 1);
+  });
+
+  it('falls back to one core when Docker reports nothing and nothing was stored', async () => {
+    await ensureEnvStep.run(ctx, new AbortController().signal);
+
+    expect(readEnv(layout.envFile).JELLYFIN_CPU_LIMIT).toBe('1');
+  });
+
+  it('keeps the stored limit when a later run cannot read the Docker cores', async () => {
+    ctx.dockerCpus = 4;
+    await ensureEnvStep.run(ctx, new AbortController().signal);
+    ctx.dockerCpus = undefined;
+    const before = readFileSync(layout.envFile, 'utf8');
+
+    const outcome = await ensureEnvStep.run(ctx, new AbortController().signal);
+
+    expect(outcome).toEqual({ status: 'unchanged' });
+    expect(readFileSync(layout.envFile, 'utf8')).toBe(before);
+  });
+
+  it('rewrites only the limit when the Docker cores change and is stable otherwise', async () => {
+    ctx.dockerCpus = 4;
+    await ensureEnvStep.run(ctx, new AbortController().signal);
+    expect((await ensureEnvStep.run(ctx, new AbortController().signal)).status).toBe('unchanged');
+    ctx.dockerCpus = 8;
+
+    const outcome = await ensureEnvStep.run(ctx, new AbortController().signal);
+
+    expect(outcome).toEqual({ status: 'changed', detail: 'updated JELLYFIN_CPU_LIMIT' });
+    expect(readEnv(layout.envFile).JELLYFIN_CPU_LIMIT).toBe('7');
+  });
 });

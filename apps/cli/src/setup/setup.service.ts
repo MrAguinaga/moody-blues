@@ -14,7 +14,7 @@ import {
   runPreflightChecks,
   type SystemReport,
 } from '../checks';
-import { detectContextHardware } from '../docker';
+import { detectContextHardware, detectDockerCpus } from '../docker';
 import type { SetupInput } from './setup.types';
 
 export interface SetupRunOptions {
@@ -59,6 +59,7 @@ export async function runSetup(options: SetupRunOptions): Promise<SetupReport> {
       flags: new Map(options.rotateCredentials ? [[ROTATE_CREDENTIALS_FLAG, true]] : []),
       cliVersion,
       hardware: detectContextHardware(config),
+      dockerCpus: await detectDockerCpus(),
     },
     { scope: 'setup', signal, onEvent: options.onPipelineEvent },
   );

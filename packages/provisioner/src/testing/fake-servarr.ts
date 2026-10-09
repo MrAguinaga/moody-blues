@@ -15,6 +15,7 @@ export interface FakeServarrOptions {
   factoryProfiles?: boolean;
   profilesInUse?: readonly string[];
   queue?: readonly QueueRecord[];
+  jellyfinApiKey?: string;
   health?: readonly HealthResource[];
 }
 
@@ -25,6 +26,7 @@ export interface FakeServarrState {
   customFormats: Resource[];
   qualityProfiles: Resource[];
   releaseProfiles: Resource[];
+  notifications: Resource[];
   queue: QueueRecord[];
   blocklist: QueueRecord[];
   health: HealthResource[];
@@ -95,6 +97,57 @@ function qbittorrentSchema(kind: ArrKind): Resource {
       field('sequentialOrder', false),
       field('firstAndLast', false),
       field('contentLayout', 0),
+    ],
+  };
+}
+
+const SONARR_NOTIFICATION_TRIGGERS = [
+  'onGrab',
+  'onDownload',
+  'onUpgrade',
+  'onImportComplete',
+  'onRename',
+  'onSeriesAdd',
+  'onSeriesDelete',
+  'onEpisodeFileDelete',
+  'onEpisodeFileDeleteForUpgrade',
+  'onHealthIssue',
+  'onHealthRestored',
+  'onApplicationUpdate',
+];
+const RADARR_NOTIFICATION_TRIGGERS = [
+  'onGrab',
+  'onDownload',
+  'onUpgrade',
+  'onRename',
+  'onMovieAdded',
+  'onMovieDelete',
+  'onMovieFileDelete',
+  'onMovieFileDeleteForUpgrade',
+  'onHealthIssue',
+  'onHealthRestored',
+  'onApplicationUpdate',
+];
+
+function mediaBrowserSchema(kind: ArrKind): Resource {
+  const triggers = kind === 'sonarr' ? SONARR_NOTIFICATION_TRIGGERS : RADARR_NOTIFICATION_TRIGGERS;
+  return {
+    ...Object.fromEntries(triggers.map((trigger) => [trigger, false])),
+    name: '',
+    implementationName: 'Emby / Jellyfin',
+    implementation: 'MediaBrowser',
+    configContract: 'MediaBrowserSettings',
+    tags: [],
+    fields: [
+      field('host', null),
+      field('port', 8096),
+      field('useSsl', false),
+      field('urlBase', null),
+      field('apiKey', null, 'apiKey'),
+      field('notify', false),
+      field('updateLibrary', true),
+      field('mapFrom', null),
+      field('mapTo', null),
     ],
   };
 }
@@ -401,10 +454,10 @@ function fieldValue(resource: Resource, name: string): unknown {
   return (resource.fields as ProviderField[]).find((candidate) => candidate.name === name)?.value;
 }
 
-function maskPasswords(resource: Resource): Resource {
+function maskSecrets(resource: Resource, names: readonly string[]): Resource {
   const clone = structuredClone(resource);
   for (const entry of clone.fields as ProviderField[]) {
-    if (entry.name === 'password' && entry.value) {
+    if (names.includes(entry.name) && entry.value) {
       entry.value = MASK;
     }
   }
@@ -424,6 +477,7 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
   let nextFormatId = 1;
   let nextProfileId = 1;
   let nextReleaseProfileId = 1;
+  let nextNotificationId = 1;
   const state: FakeServarrState = {
     config: defaultConfig(kind),
     rootFolders: [],
@@ -431,6 +485,7 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
     customFormats: [],
     qualityProfiles: [],
     releaseProfiles: [],
+    notifications: [],
     queue: (options.queue ?? []).map((record) => structuredClone(record)),
     blocklist: [],
     health: structuredClone([
@@ -516,6 +571,32 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
     for (const entry of stored.fields as ProviderField[]) {
       if (entry.name === 'password' && entry.value === MASK && previous) {
         entry.value = fieldValue(previous, 'password');
+      }
+    }
+    stored.id = id;
+    return stored;
+  }
+
+  function validateNotification(body: Resource, existingId: number | undefined) {
+    const name = String(body.name ?? '');
+    if (state.notifications.some((entry) => entry.name === name && entry.id !== existingId)) {
+      return validation('Name', 'Should be unique');
+    }
+    const key = fieldValue(body, 'apiKey');
+    const previous = state.notifications.find((entry) => entry.id === existingId);
+    const effective = key === MASK && previous ? fieldValue(previous, 'apiKey') : key;
+    if (options.jellyfinApiKey !== undefined && effective !== options.jellyfinApiKey) {
+      return validation('ApiKey', `Jellyfin rejected the API key ${String(effective)}`);
+    }
+    return undefined;
+  }
+
+  function storeNotification(body: Resource, id: number): Resource {
+    const previous = state.notifications.find((entry) => entry.id === id);
+    const stored = structuredClone(body);
+    for (const entry of stored.fields as ProviderField[]) {
+      if (entry.name === 'apiKey' && entry.value === MASK && previous) {
+        entry.value = fieldValue(previous, 'apiKey');
       }
     }
     stored.id = id;
@@ -819,6 +900,42 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
       return json(202, stored);
     }
 
+    if (method === 'GET' && path === '/api/v3/notification/schema') {
+      return json(200, [mediaBrowserSchema(kind)]);
+    }
+    if (path === '/api/v3/notification') {
+      if (method === 'GET') {
+        return json(
+          200,
+          state.notifications.map((entry) => maskSecrets(entry, ['apiKey'])),
+        );
+      }
+      if (method === 'POST') {
+        const failure = validateNotification(body, undefined);
+        if (failure) {
+          return failure;
+        }
+        const stored = storeNotification(body, nextNotificationId);
+        nextNotificationId += 1;
+        state.notifications.push(stored);
+        return json(201, maskSecrets(stored, ['apiKey']));
+      }
+    }
+    const notificationMatch = /^\/api\/v3\/notification\/(\d+)$/.exec(path);
+    if (method === 'PUT' && notificationMatch) {
+      const id = Number(notificationMatch[1]);
+      if (!state.notifications.some((entry) => entry.id === id)) {
+        return json(404);
+      }
+      const failure = validateNotification(body, id);
+      if (failure) {
+        return failure;
+      }
+      const stored = storeNotification(body, id);
+      state.notifications = state.notifications.map((entry) => (entry.id === id ? stored : entry));
+      return json(202, maskSecrets(stored, ['apiKey']));
+    }
+
     const configMatch = /^\/api\/v3\/config\/(\w+)(?:\/(\d+))?$/.exec(path);
     if (configMatch) {
       const name = configMatch[1] as string;
@@ -860,7 +977,10 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
       return json(200, [qbittorrentSchema(kind)]);
     }
     if (method === 'GET' && path === '/api/v3/downloadclient') {
-      return json(200, state.downloadClients.map(maskPasswords));
+      return json(
+        200,
+        state.downloadClients.map((client) => maskSecrets(client, ['password'])),
+      );
     }
     if (method === 'POST' && path === '/api/v3/downloadclient/test') {
       const existingId = typeof body.id === 'number' ? body.id : undefined;
@@ -874,7 +994,7 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
       const stored = storeClient(body, nextClientId);
       nextClientId += 1;
       state.downloadClients.push(stored);
-      return json(201, maskPasswords(stored));
+      return json(201, maskSecrets(stored, ['password']));
     }
     const clientMatch = /^\/api\/v3\/downloadclient\/(\d+)$/.exec(path);
     if (method === 'PUT' && clientMatch) {
@@ -890,7 +1010,7 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
       state.downloadClients = state.downloadClients.map((client) =>
         client.id === id ? stored : client,
       );
-      return json(202, maskPasswords(stored));
+      return json(202, maskSecrets(stored, ['password']));
     }
     return json(404, { message: `No fake route for ${method} ${path}` });
   }

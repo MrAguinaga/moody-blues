@@ -456,6 +456,7 @@ export {
   readEnv,
   readIssuedKey,
   readState,
+  resolveJellyfinCpuLimit,
   serializeEnvFile,
   SERVICE_KEY_ENV_KEYS,
   type ServiceKeys,

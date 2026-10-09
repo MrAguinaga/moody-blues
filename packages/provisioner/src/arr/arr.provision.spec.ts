@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -20,6 +20,7 @@ import { ARR_KINDS, type ArrKind } from './arr.types';
 const identity = { puid: 1000, pgid: 1000 };
 const secrets = { rdApiToken: 'rd-token', adminUsername: 'Admin', adminPassword: 'p@ss word' };
 const API_KEYS: Record<ArrKind, string> = { sonarr: 'sonarr-key', radarr: 'radarr-key' };
+const JELLYFIN_KEY = 'jellyfin-secret-key';
 const noSleep = async () => undefined;
 
 function createContext(overrides: Partial<ProvisionContext> = {}): ProvisionContext {
@@ -35,7 +36,12 @@ function createContext(overrides: Partial<ProvisionContext> = {}): ProvisionCont
   };
 }
 
-function run(kind: ArrKind, server: FakeServarr, ctx: ProvisionContext = createContext()) {
+function run(
+  kind: ArrKind,
+  server: FakeServarr,
+  ctx: ProvisionContext = createContext(),
+  jellyfinApiKey: string | null = JELLYFIN_KEY,
+) {
   const client = createArrClient({
     kind,
     baseUrl: server.baseUrl,
@@ -48,6 +54,7 @@ function run(kind: ArrKind, server: FakeServarr, ctx: ProvisionContext = createC
     kind,
     client,
     apiKey: server.apiKey,
+    jellyfinApiKey: jellyfinApiKey ?? undefined,
     signal: new AbortController().signal,
     ready: { sleep: noSleep },
   });
@@ -61,7 +68,7 @@ describe.each(ARR_KINDS)('provisionArr (%s)', (kind) => {
   let server: FakeServarr;
 
   beforeEach(() => {
-    server = createFakeServarr({ kind, apiKey: API_KEYS[kind] });
+    server = createFakeServarr({ kind, apiKey: API_KEYS[kind], jellyfinApiKey: JELLYFIN_KEY });
   });
 
   it('provisions a fresh instance and reports what changed', async () => {
@@ -311,6 +318,166 @@ describe.each(ARR_KINDS)('provisionArr (%s)', (kind) => {
     expect(server.state.releaseProfiles).toHaveLength(2);
   });
 
+  describe('Jellyfin connection', () => {
+    const connection = (target: FakeServarr) =>
+      target.state.notifications[0] as Record<string, unknown>;
+    const fieldsOf = (target: FakeServarr) =>
+      Object.fromEntries(
+        (connection(target).fields as { name: string; value: unknown }[]).map((entry) => [
+          entry.name,
+          entry.value,
+        ]),
+      );
+    const enabledTriggers = (target: FakeServarr) =>
+      Object.entries(connection(target))
+        .filter(([key, value]) => key.startsWith('on') && value === true)
+        .map(([key]) => key)
+        .sort();
+    const EXPECTED_TRIGGERS = {
+      sonarr: ['onDownload', 'onEpisodeFileDelete', 'onRename', 'onSeriesDelete', 'onUpgrade'],
+      radarr: ['onDownload', 'onMovieDelete', 'onMovieFileDelete', 'onRename', 'onUpgrade'],
+    };
+
+    it('creates a library-updating Emby / Jellyfin connection by name', async () => {
+      const outcome = await run(kind, server);
+
+      expect(outcome.detail).toContain('Jellyfin connection');
+      expect(server.state.notifications).toHaveLength(1);
+      expect(connection(server)).toMatchObject({
+        name: 'Jellyfin',
+        implementation: 'MediaBrowser',
+        configContract: 'MediaBrowserSettings',
+        tags: [],
+      });
+      expect(enabledTriggers(server)).toEqual(EXPECTED_TRIGGERS[kind]);
+      expect(fieldsOf(server)).toEqual({
+        host: 'jellyfin',
+        port: 8096,
+        useSsl: false,
+        urlBase: '',
+        apiKey: JELLYFIN_KEY,
+        notify: false,
+        updateLibrary: true,
+        mapFrom: '',
+        mapTo: '',
+      });
+    });
+
+    it('writes nothing on the second run although the api masks the key', async () => {
+      await run(kind, server);
+      const before = server.writes().length;
+
+      const outcome = await run(kind, server);
+
+      expect(outcome).toEqual({ status: 'unchanged' });
+      expect(server.writes()).toHaveLength(before);
+    });
+
+    it.each([
+      [
+        'a changed host',
+        (target: FakeServarr) => {
+          const entry = (connection(target).fields as { name: string; value: unknown }[]).find(
+            (candidate) => candidate.name === 'host',
+          );
+          if (entry) entry.value = 'elsewhere';
+        },
+      ],
+      [
+        'a withdrawn trigger',
+        (target: FakeServarr) => {
+          connection(target).onRename = false;
+        },
+      ],
+      [
+        'library updates switched off',
+        (target: FakeServarr) => {
+          const entry = (connection(target).fields as { name: string; value: unknown }[]).find(
+            (candidate) => candidate.name === 'updateLibrary',
+          );
+          if (entry) entry.value = false;
+        },
+      ],
+    ])('corrects %s with one PUT that carries the real key', async (_label, drift) => {
+      await run(kind, server);
+      drift(server);
+      const before = server.writes().length;
+
+      const outcome = await run(kind, server);
+
+      expect(outcome.detail).toBe('Jellyfin connection');
+      const writes = server.writes().slice(before);
+      expect(writes.map((request) => `${request.method} ${request.path}`)).toEqual([
+        'PUT /api/v3/notification/1',
+      ]);
+      expect(fieldsOf(server).apiKey).toBe(JELLYFIN_KEY);
+      expect(fieldsOf(server)).toMatchObject({ host: 'jellyfin', updateLibrary: true });
+      expect(enabledTriggers(server)).toEqual(EXPECTED_TRIGGERS[kind]);
+      expect((await run(kind, server)).status).toBe('unchanged');
+    });
+
+    it('leaves connections of other names untouched', async () => {
+      const foreign = {
+        id: 7,
+        name: 'Other media server',
+        implementation: 'MediaBrowser',
+        configContract: 'MediaBrowserSettings',
+        onGrab: true,
+        tags: [],
+        fields: [{ name: 'host', value: 'other' }],
+      };
+      server.state.notifications.push(structuredClone(foreign));
+
+      await run(kind, server);
+      await run(kind, server);
+
+      expect(server.state.notifications[0]).toEqual(foreign);
+      expect(server.state.notifications).toHaveLength(2);
+    });
+
+    it('fails clearly when the Jellyfin key was never issued', async () => {
+      await expect(run(kind, server, createContext(), null)).rejects.toThrow(
+        'The Jellyfin API key is missing from the environment file',
+      );
+      expect(server.state.notifications).toEqual([]);
+    });
+
+    it('never leaks the key through the detail, the progress or an error', async () => {
+      const messages: string[] = [];
+      const outcome = await run(
+        kind,
+        server,
+        createContext({ reportProgress: (message) => messages.push(message) }),
+      );
+      const rejecting = createFakeServarr({
+        kind,
+        apiKey: API_KEYS[kind],
+        jellyfinApiKey: 'a-different-key',
+      });
+
+      const failure = await run(kind, rejecting).then(
+        () => undefined,
+        (error: unknown) => error as Error,
+      );
+
+      expect(JSON.stringify([outcome, messages])).not.toContain(JELLYFIN_KEY);
+      expect(failure?.message).toContain('Jellyfin rejected the API key ***');
+      expect(failure?.message).not.toContain(JELLYFIN_KEY);
+    });
+
+    it('reports its own progress line', async () => {
+      const messages: string[] = [];
+
+      await run(
+        kind,
+        server,
+        createContext({ reportProgress: (message) => messages.push(message) }),
+      );
+
+      expect(messages).toContain('Configuring Jellyfin connection');
+    });
+  });
+
   it('reports progress for every section', async () => {
     const messages: string[] = [];
 
@@ -402,6 +569,7 @@ describe('Arr provisioning steps', () => {
         'BAZARR_API_KEY=bazarr-key',
         'DECYPHARR_API_TOKEN=decypharr-token',
         'SEERR_API_KEY=seerr-key',
+        'JELLYFIN_API_KEY=jellyfin-key',
         '',
       ].join('\n'),
     );
@@ -422,7 +590,11 @@ describe('Arr provisioning steps', () => {
     ['sonarr', 'http://127.0.0.1:8989'],
     ['radarr', 'http://127.0.0.1:7878'],
   ] as const)('provisions %s through its host url with its own key', async (kind, origin) => {
-    const server = createFakeServarr({ kind, apiKey: API_KEYS[kind] });
+    const server = createFakeServarr({
+      kind,
+      apiKey: API_KEYS[kind],
+      jellyfinApiKey: 'jellyfin-key',
+    });
     const step = createArrProvisionStep(kind, { fetch: server.fetch, sleep: noSleep });
     const ctx = createContext({ layout });
 
@@ -434,6 +606,21 @@ describe('Arr provisioning steps', () => {
     expect(second.steps[0]).toMatchObject({ id: `${kind}-provision`, status: 'unchanged' });
     expect(server.writes()).toHaveLength(writes);
     expect(server.requests.every((request) => request.url.startsWith(origin))).toBe(true);
+  });
+
+  it('fails the step when the environment file has no Jellyfin key', async () => {
+    writeFileSync(
+      layout.envFile,
+      readFileSync(layout.envFile, 'utf8').replace(/JELLYFIN_API_KEY=.*\n/, ''),
+    );
+    const server = createFakeServarr({ kind: 'sonarr', apiKey: API_KEYS.sonarr });
+    const step = createArrProvisionStep('sonarr', { fetch: server.fetch, sleep: noSleep });
+
+    const report = await runPipeline([step], createContext({ layout }), { scope: 'setup' });
+
+    expect(report.success).toBe(false);
+    expect(report.error).toContain('The Jellyfin API key is missing');
+    expect(server.state.notifications).toEqual([]);
   });
 
   it('fails the pipeline when the environment file lacks the service keys', async () => {

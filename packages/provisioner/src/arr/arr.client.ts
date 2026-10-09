@@ -10,6 +10,7 @@ import type {
   DownloadClientResource,
   HealthResource,
   LanguageResource,
+  NotificationResource,
   QualityProfileResource,
   QueuePage,
   QueueRecord,
@@ -57,6 +58,10 @@ export interface ArrClient {
     options?: DownloadClientSaveOptions,
   ): Promise<DownloadClientResource>;
   testDownloadClient(resource: DownloadClientResource): Promise<void>;
+  listNotifications(): Promise<NotificationResource[]>;
+  getNotificationSchema(): Promise<NotificationResource[]>;
+  createNotification(resource: NotificationResource): Promise<NotificationResource>;
+  updateNotification(resource: NotificationResource): Promise<NotificationResource>;
   listLanguages(): Promise<LanguageResource[]>;
   listCustomFormats(): Promise<CustomFormatResource[]>;
   getCustomFormatSchema(): Promise<SpecificationSchemaResource[]>;
@@ -109,6 +114,10 @@ export function createArrClient(options: ArrClientOptions): ArrClient {
     testDownloadClient: async (resource) => {
       await http.post(`${API_ROOT}/downloadclient/test`, resource);
     },
+    listNotifications: () => http.get(`${API_ROOT}/notification`),
+    getNotificationSchema: () => http.get(`${API_ROOT}/notification/schema`),
+    createNotification: (resource) => http.post(`${API_ROOT}/notification`, resource),
+    updateNotification: (resource) => http.put(`${API_ROOT}/notification/${resource.id}`, resource),
     listLanguages: () => http.get(`${API_ROOT}/language`),
     listCustomFormats: () => http.get(`${API_ROOT}/customformat`),
     getCustomFormatSchema: () => http.get(`${API_ROOT}/customformat/schema`),

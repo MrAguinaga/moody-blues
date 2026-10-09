@@ -84,7 +84,7 @@ describe('provisionBazarr', () => {
 
     expect(outcome.status).toBe('changed');
     expect(outcome.detail).toBe(
-      'enabled languages ea, language profile Spanish Latino; ' +
+      'enabled languages ea, language profile Spanish Latino, subtitle synchronization; ' +
         'no OpenSubtitles credentials: movies have no subtitle provider',
     );
     expect(
@@ -97,6 +97,35 @@ describe('provisionBazarr', () => {
       serie_default_profile: 1,
       movie_default_profile: 1,
     });
+  });
+
+  it('turns synchronization on for every subtitle and lowers only the series score', async () => {
+    await run(server);
+
+    expect(server.state.settings.subsync).toMatchObject({
+      use_subsync: true,
+      use_subsync_threshold: false,
+      use_subsync_movie_threshold: false,
+      subsync_threshold: 90,
+    });
+    expect(server.state.settings.general).toMatchObject({
+      minimum_score: 80,
+      minimum_score_movie: 70,
+    });
+  });
+
+  it('corrects synchronization drift alone and then stays quiet', async () => {
+    await run(server);
+    server.state.settings.subsync = { ...server.state.settings.subsync, use_subsync: false };
+    server.state.settings.general = { ...server.state.settings.general, minimum_score: 90 };
+    const writes = server.writes().length;
+
+    const outcome = await run(server);
+
+    expect(outcome).toMatchObject({ status: 'changed' });
+    expect(outcome.detail).toContain('subtitle synchronization');
+    expect(server.writes()).toHaveLength(writes + 1);
+    expect((await run(server)).status).toBe('unchanged');
   });
 
   it('sends the profile items as python-style strings in a url-encoded form', async () => {

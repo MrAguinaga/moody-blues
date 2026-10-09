@@ -8,7 +8,7 @@ export {
   USER_SECRET_ENV_KEYS,
 } from './env-keys.constants';
 export { readEnv, writeEnv } from './env-store.service';
-export { buildHostEnv } from './host-env.service';
+export { buildHostEnv, resolveJellyfinCpuLimit } from './host-env.service';
 export { type IssuedKeyEnvKey, persistIssuedKey, readIssuedKey } from './issued-keys.service';
 export {
   ensureServiceKeys,

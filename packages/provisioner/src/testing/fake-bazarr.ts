@@ -134,6 +134,15 @@ export function createFakeBazarr(options: FakeBazarrOptions): FakeBazarr {
   const seed: BazarrSeedInput = { ...DEFAULT_SEED, apiKey, ...options.seed };
   const settings = parse(renderBazarrConfig(seed)) as BazarrSettings;
   settings.opensubtitlescom ??= { username: '', password: '' };
+  settings.general = { minimum_score: 90, minimum_score_movie: 70, ...settings.general };
+  settings.subsync = {
+    use_subsync: false,
+    use_subsync_threshold: false,
+    use_subsync_movie_threshold: false,
+    subsync_threshold: 90,
+    subsync_movie_threshold: 70,
+    ...settings.subsync,
+  };
   const state: FakeBazarrState = {
     settings,
     languages: LANGUAGES.map((language) => ({

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createDefaultConfig } from '../config/config.defaults';
 import { createLayout } from '../home/home.paths';
-import { buildHostEnv } from './host-env.service';
+import { buildHostEnv, resolveJellyfinCpuLimit } from './host-env.service';
 import {
   ensureServiceKeys,
   parseUserSecrets,
@@ -100,7 +100,13 @@ describe('buildHostEnv', () => {
       TZ: 'America/Mexico_City',
       COMPOSE_PROFILES: 'storage',
       MNT_PROPAGATION: 'rslave',
+      JELLYFIN_CPU_LIMIT: '1',
     });
+  });
+
+  it('carries the CPU limit it is given', () => {
+    const env = buildHostEnv(createDefaultConfig(), layout, undefined, '3');
+    expect(env.JELLYFIN_CPU_LIMIT).toBe('3');
   });
 
   it('uses rprivate propagation when storage is disabled', () => {
@@ -108,5 +114,28 @@ describe('buildHostEnv', () => {
     const env = buildHostEnv(config, layout);
     expect(env.MNT_PROPAGATION).toBe('rprivate');
     expect(env.COMPOSE_PROFILES).toBe('');
+  });
+});
+
+describe('resolveJellyfinCpuLimit', () => {
+  it.each([
+    [8, undefined, '7'],
+    [2, undefined, '1'],
+    [1, undefined, '1'],
+    [12, '3', '11'],
+  ])('leaves one core free out of %i', (dockerCpus, current, expected) => {
+    expect(resolveJellyfinCpuLimit(dockerCpus, current)).toBe(expected);
+  });
+
+  it.each([0, -2, 1.5, Number.NaN])('ignores the invalid core count %s', (dockerCpus) => {
+    expect(resolveJellyfinCpuLimit(dockerCpus, undefined)).toBe('1');
+  });
+
+  it('keeps the stored limit when Docker reports nothing', () => {
+    expect(resolveJellyfinCpuLimit(undefined, '5')).toBe('5');
+  });
+
+  it.each(['', '0', '-1', '2.5', 'many'])('replaces the invalid stored limit %j', (current) => {
+    expect(resolveJellyfinCpuLimit(undefined, current)).toBe('1');
   });
 });

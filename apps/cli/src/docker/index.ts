@@ -28,6 +28,7 @@ export {
   type StackStatus,
 } from './compose.types';
 export { buildStackStatus, isServiceHealthy, parseComposePs } from './compose-ps.parser';
+export { detectDockerCpus } from './docker-cpus.utils';
 export {
   HealthWaitError,
   type HealthWaitFailure,

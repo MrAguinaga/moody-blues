@@ -2,6 +2,7 @@ import {
   buildHostEnv,
   ensureServiceKeys,
   readEnv,
+  resolveJellyfinCpuLimit,
   serializeEnvFile,
   serviceKeysFromEnv,
   serviceKeysToEnv,
@@ -16,12 +17,17 @@ export const ensureEnvStep: ProvisionStep = {
   id: 'ensure-env',
   title: 'Write environment file',
   scopes: ['setup', 'reset', 'config'],
-  run: async ({ config, secrets, layout, identity }) => {
+  run: async ({ config, secrets, layout, identity, dockerCpus }) => {
     const current = readEnv(layout.envFile);
     const next = {
       ...current,
       ...userSecretsToEnv(secrets),
-      ...buildHostEnv(config, layout, identity),
+      ...buildHostEnv(
+        config,
+        layout,
+        identity,
+        resolveJellyfinCpuLimit(dockerCpus, current.JELLYFIN_CPU_LIMIT),
+      ),
       ...serviceKeysToEnv(ensureServiceKeys(serviceKeysFromEnv(current))),
     };
 

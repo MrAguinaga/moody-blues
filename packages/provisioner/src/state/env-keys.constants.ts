@@ -6,6 +6,7 @@ export const HOST_ENV_KEYS = [
   'TZ',
   'COMPOSE_PROFILES',
   'MNT_PROPAGATION',
+  'JELLYFIN_CPU_LIMIT',
 ] as const;
 
 export const USER_SECRET_ENV_KEYS = [

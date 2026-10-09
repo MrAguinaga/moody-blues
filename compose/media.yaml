@@ -10,6 +10,7 @@ services:
     init: true
     restart: unless-stopped
     user: '${PUID:?PUID is required}:${PGID:?PGID is required}'
+    cpus: ${JELLYFIN_CPU_LIMIT:-1}
     environment:
       TZ: ${TZ:-UTC}
       JELLYFIN_PublishedServerUrl: https://watch.${MB_DOMAIN:?MB_DOMAIN is required}

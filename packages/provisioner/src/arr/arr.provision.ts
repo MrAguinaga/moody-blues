@@ -1,4 +1,9 @@
-import { applyFieldValues, fieldsMatch, valuesEqual } from '../http/provider-fields';
+import {
+  applyFieldValues,
+  fieldsMatch,
+  type ProviderResource,
+  valuesEqual,
+} from '../http/provider-fields';
 import { waitUntilReady, type WaitUntilReadyOptions } from '../http/ready.http';
 import { ROTATE_CREDENTIALS_FLAG } from '../pipeline/pipeline.flags';
 import type {
@@ -8,6 +13,7 @@ import type {
   StepOutcome,
 } from '../pipeline/pipeline.types';
 import { loadServiceKeys, SERVICE_CATALOG } from '../services';
+import { readIssuedKey } from '../state/issued-keys.service';
 import {
   type ArrClient,
   type ArrClientOptions,
@@ -18,17 +24,25 @@ import {
   buildDecypharrClient,
   buildDownloadClientConfigSettings,
   buildIndexerSettings,
+  buildJellyfinConnection,
   buildMediaManagementSettings,
   buildNamingSettings,
   buildReleaseExclusions,
   buildUiSettings,
   DECYPHARR_CLIENT_NAME,
   DECYPHARR_IMPLEMENTATION,
+  JELLYFIN_CONNECTION_NAME,
+  JELLYFIN_IMPLEMENTATION,
   RELEASE_EXCLUSIONS_NAME,
   resolveUiLanguageId,
   ROOT_FOLDER_PATHS,
 } from './arr.settings';
-import type { ArrKind, DownloadClientResource, ReleaseProfileResource } from './arr.types';
+import type {
+  ArrKind,
+  DownloadClientResource,
+  NotificationResource,
+  ReleaseProfileResource,
+} from './arr.types';
 
 const ARR_STEP_SCOPES: readonly ProvisionScope[] = ['setup', 'reset', 'config', 'update'];
 const ARR_TITLES: Readonly<Record<ArrKind, string>> = {
@@ -46,6 +60,7 @@ export interface ProvisionArrOptions {
   kind: ArrKind;
   client: ArrClient;
   apiKey: string;
+  jellyfinApiKey?: string;
   signal: AbortSignal;
   ready?: ArrReadyOptions;
 }
@@ -149,11 +164,88 @@ async function ensureReleaseExclusions(client: ArrClient): Promise<string | unde
   return 'release exclusions';
 }
 
+const isBlank = (value: unknown) => value === undefined || value === null || value === '';
+
+function connectionFieldsMatch(
+  existing: ProviderResource,
+  desired: Readonly<Record<string, unknown>>,
+): boolean {
+  return Object.entries(desired).every(([name, value]) => {
+    const actual = existing.fields.find((candidate) => candidate.name === name)?.value;
+    return isBlank(value) ? isBlank(actual) : valuesEqual(actual, value);
+  });
+}
+
+function jellyfinConnectionMatches(
+  existing: NotificationResource,
+  settings: ReturnType<typeof buildJellyfinConnection>,
+): boolean {
+  const propertiesMatch = Object.entries(settings.properties).every(([key, value]) =>
+    valuesEqual(existing[key], value),
+  );
+  return propertiesMatch && connectionFieldsMatch(existing, settings.comparableFields);
+}
+
+async function saveJellyfinConnection(
+  client: ArrClient,
+  settings: ReturnType<typeof buildJellyfinConnection>,
+): Promise<string | undefined> {
+  const existing = (await client.listNotifications()).find(
+    (candidate) => candidate.name === JELLYFIN_CONNECTION_NAME,
+  );
+
+  if (existing) {
+    if (jellyfinConnectionMatches(existing, settings)) {
+      return undefined;
+    }
+    await client.updateNotification({
+      ...applyFieldValues(existing, settings.fields),
+      ...settings.properties,
+    });
+    return 'Jellyfin connection';
+  }
+
+  const template = (await client.getNotificationSchema()).find(
+    (candidate) => candidate.implementation === JELLYFIN_IMPLEMENTATION,
+  );
+  if (!template) {
+    throw new Error(`${client.kind} offers no ${JELLYFIN_IMPLEMENTATION} connection schema`);
+  }
+  await client.createNotification({
+    ...applyFieldValues(template, settings.fields),
+    ...settings.properties,
+  });
+  return 'Jellyfin connection';
+}
+
+async function ensureJellyfinConnection(
+  client: ArrClient,
+  jellyfinApiKey: string | undefined,
+): Promise<string | undefined> {
+  if (!jellyfinApiKey) {
+    throw new Error(
+      'The Jellyfin API key is missing from the environment file; ' +
+        'run the Jellyfin provisioning step before the Jellyfin connection',
+    );
+  }
+  try {
+    return await saveJellyfinConnection(
+      client,
+      buildJellyfinConnection(client.kind, jellyfinApiKey),
+    );
+  } catch (error) {
+    if (error instanceof Error && error.message.includes(jellyfinApiKey)) {
+      error.message = error.message.split(jellyfinApiKey).join('***');
+    }
+    throw error;
+  }
+}
+
 export async function provisionArr(
   ctx: ProvisionContext,
   options: ProvisionArrOptions,
 ): Promise<StepOutcome> {
-  const { kind, client, apiKey, signal } = options;
+  const { kind, client, apiKey, jellyfinApiKey, signal } = options;
   const label = kind === 'sonarr' ? 'Sonarr' : 'Radarr';
   const changes: string[] = [];
   const record = (change: string | false | undefined) => {
@@ -216,6 +308,9 @@ export async function provisionArr(
   progress('Configuring release exclusions');
   record(await ensureReleaseExclusions(client));
 
+  progress('Configuring Jellyfin connection');
+  record(await ensureJellyfinConnection(client, jellyfinApiKey));
+
   const issues = (await client.getHealth()).filter((entry) => entry.type !== 'ok');
   if (issues.length > 0) {
     progress(`${label} health: ${issues.map((issue) => issue.message).join('; ')}`);
@@ -245,7 +340,14 @@ export function createArrProvisionStep(
         signal,
         ...clientOverrides,
       });
-      return provisionArr(ctx, { kind, client, apiKey, signal, ready });
+      return provisionArr(ctx, {
+        kind,
+        client,
+        apiKey,
+        jellyfinApiKey: readIssuedKey(ctx.layout.envFile, 'JELLYFIN_API_KEY'),
+        signal,
+        ready,
+      });
     },
   };
 }

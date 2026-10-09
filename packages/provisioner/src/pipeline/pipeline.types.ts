@@ -30,6 +30,7 @@ export interface ProvisionContext {
   flags: PipelineFlags;
   cliVersion: string;
   hardware?: HardwareAccelKind;
+  dockerCpus?: number;
   reportProgress?: (message: string) => void;
 }
 
