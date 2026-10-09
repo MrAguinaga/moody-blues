@@ -57,7 +57,7 @@ describe('INFRASTRUCTURE_STEPS', () => {
       ['gateway-config', 'setup,reset,config,update'],
       ['containers-up', 'setup,reset,config,update'],
       ['wait-healthy', 'setup,reset,config,update'],
-      ['gateway-reload', 'config,update'],
+      ['gateway-reload', 'setup,config,update'],
     ]);
   });
 
@@ -74,6 +74,7 @@ describe('INFRASTRUCTURE_STEPS', () => {
       'gateway-config',
       'containers-up',
       'wait-healthy',
+      'gateway-reload',
     ]);
     expect(statuses(report)).toMatchObject({
       'host-tree': 'changed',
@@ -169,8 +170,32 @@ describe('INFRASTRUCTURE_STEPS', () => {
     );
   });
 
+  it('reloads the gateway when a repeated setup changes the Caddyfile', async () => {
+    await runPipeline(INFRASTRUCTURE_STEPS, createContext(), { scope: 'setup' });
+    vi.mocked(runtime.reloadGateway).mockClear();
+
+    const unchanged = await runPipeline(INFRASTRUCTURE_STEPS, createContext(), { scope: 'setup' });
+    expect(statuses(unchanged)['gateway-reload']).toBe('skipped');
+    expect(runtime.reloadGateway).not.toHaveBeenCalled();
+
+    const changed = await runPipeline(
+      INFRASTRUCTURE_STEPS,
+      createContext({
+        config: createDefaultConfig({
+          host: identity,
+          mode: 'remote',
+          domain: 'example.com',
+        }),
+      }),
+      { scope: 'setup' },
+    );
+    expect(statuses(changed)['gateway-reload']).toBe('changed');
+    expect(runtime.reloadGateway).toHaveBeenCalledOnce();
+  });
+
   it('reloads the gateway in config scope only when the Caddyfile changed', async () => {
     await runPipeline(INFRASTRUCTURE_STEPS, createContext(), { scope: 'setup' });
+    vi.mocked(runtime.reloadGateway).mockClear();
 
     const unchanged = await runPipeline(INFRASTRUCTURE_STEPS, createContext(), { scope: 'config' });
     expect(statuses(unchanged)['gateway-reload']).toBe('skipped');
