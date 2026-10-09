@@ -153,6 +153,20 @@ describe('ensureFlaresolverrProxy', () => {
     expect(fake.state.proxies[0]?.tags).toEqual([1]);
   });
 
+  it('leaves an indexer untagged when its schema item lacks info_flaresolverr', async () => {
+    const { fake, client } = setup();
+    const { schema, context } = await indexerContext(client);
+    const eztv = schemaFor(schema, 'eztv');
+    const stripped = {
+      ...eztv,
+      fields: eztv.fields.filter((entry) => entry.name !== 'info_flaresolverr'),
+    };
+
+    await client.ensureIndexer(spec('eztv'), stripped, context);
+
+    expect(fake.state.indexers[0]?.tags).toEqual([]);
+  });
+
   it('never sends forceSave when creating', async () => {
     const { fake, client } = setup();
 
@@ -296,7 +310,7 @@ describe('ensureIndexer', () => {
     expect(fieldValue(stored as unknown as IndexerResource, 'apiurl')).toBe('movies-api.accel.li');
   });
 
-  it('tags only the indexers that need FlareSolverr', async () => {
+  it('tags only the indexers whose definition declares info_flaresolverr', async () => {
     const { fake, client } = setup();
     const { schema, context } = await indexerContext(client);
 

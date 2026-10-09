@@ -73,7 +73,7 @@ describe('provisionProwlarr', () => {
     expect(outcome.status).toBe('changed');
     expect(outcome.detail).toBe(
       'administrator account, FlareSolverr proxy, Sonarr application, Radarr application, ' +
-        'created indexers 1337x, thepiratebay, yts, eztv, nyaasi',
+        `created indexers ${PROWLARR_INDEXERS.map((entry) => entry.definitionName).join(', ')}`,
     );
     expect(server.canLogin('admin', 'p@ss word')).toBe(true);
     expect(server.state.tags.map((tag) => tag.label)).toEqual(['flaresolverr']);
@@ -160,7 +160,7 @@ describe('provisionProwlarr', () => {
 
     expect(error).toBeInstanceOf(Error);
     const { message } = error as Error;
-    expect(message).toContain('1337x, thepiratebay, yts, eztv, nyaasi');
+    expect(message).toContain('1337x, thepiratebay, yts, eztv, nyaasi, Knaben');
     expect(message).toContain('90 s');
     expect(message).toContain('outbound HTTPS');
     expect(server.state.indexers).toHaveLength(0);
@@ -175,11 +175,81 @@ describe('provisionProwlarr', () => {
     const outcome = await run(server);
 
     expect(outcome.status).toBe('changed');
-    expect(outcome.detail).toContain('created indexers thepiratebay, yts, eztv, nyaasi');
-    expect(outcome.detail).toContain(
-      'skipped indexers 1337x (Unable to connect to indexer. Name does not resolve)',
-    );
+    expect(outcome.detail).toContain('created indexers thepiratebay, yts, eztv, nyaasi, Knaben');
+    expect(outcome.detail).toContain('skipped indexers 1337x (Unable to connect to indexer)');
     expect(indexerNames(server)).not.toContain('1337x');
+  });
+
+  it('does not wait when a retired definition is absent and the others are loaded', async () => {
+    const definitions = PROWLARR_INDEXERS.map((entry) => entry.definitionName).filter(
+      (name) => name !== 'yts',
+    );
+    server = createFakeProwlarr({ apiKey: API_KEY, definitions });
+    let slept = 0;
+
+    const outcome = await run(server, createContext(), {
+      definitions: {
+        sleep: async () => {
+          slept += 1;
+        },
+      },
+    });
+
+    expect(slept).toBe(0);
+    expect(server.count('GET', '/api/v1/indexer/schema')).toBe(1);
+    expect(outcome.status).toBe('changed');
+    expect(outcome.detail).toContain('skipped indexers yts (definition not available)');
+    expect(indexerNames(server)).not.toContain('yts');
+    expect(indexerNames(server)).toHaveLength(PROWLARR_INDEXERS.length - 1);
+  });
+
+  it('continues with the available definitions once the wait runs out', async () => {
+    server = createFakeProwlarr({ apiKey: API_KEY, definitions: ['yts', 'other'] });
+
+    const outcome = await run(server);
+
+    expect(outcome.detail).toContain('created indexers yts');
+    expect(outcome.detail).toContain('1337x (definition not available)');
+    expect(indexerNames(server)).toEqual(['yts']);
+  });
+
+  it('fails without waiting when other definitions load but none of the list does', async () => {
+    server = createFakeProwlarr({ apiKey: API_KEY, definitions: ['other'] });
+
+    const error = await run(server).catch((caught: unknown) => caught);
+
+    expect((error as Error).message).toContain('outbound HTTPS');
+    expect(server.count('GET', '/api/v1/indexer/schema')).toBe(1);
+    expect(server.state.indexers).toHaveLength(0);
+  });
+
+  it('keeps a long rejection to its first sentence and 80 characters', async () => {
+    server = createFakeProwlarr({
+      apiKey: API_KEY,
+      failingIndexers: {
+        thepiratebay:
+          'Unable to connect to indexer, check the log above the ValidationFailure for more details. Extra',
+        yts: 'Short reason. Second sentence',
+      },
+    });
+
+    const outcome = await run(server);
+
+    const expectedCut = `${'Unable to connect to indexer, check the log above the ValidationFailure for more details'.slice(0, 79)}…`;
+    expect(expectedCut).toHaveLength(80);
+    expect(outcome.detail).toContain(`thepiratebay (${expectedCut})`);
+    expect(outcome.detail).toContain('yts (Short reason)');
+    expect(outcome.detail).not.toContain('Second sentence');
+  });
+
+  it('issues no writes on a second run when nothing is skipped', async () => {
+    await run(server);
+    const writes = server.writes().length;
+
+    const second = await run(server);
+
+    expect(second).toEqual({ status: 'unchanged' });
+    expect(server.writes()).toHaveLength(writes);
   });
 
   it('retries a skipped indexer on every run and registers it once it answers', async () => {

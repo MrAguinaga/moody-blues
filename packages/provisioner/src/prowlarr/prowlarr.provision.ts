@@ -40,6 +40,9 @@ export interface ProvisionProwlarrOptions {
   sync?: ProwlarrSyncOptions;
 }
 
+const MAX_REASON_LENGTH = 80;
+const DEFINITION_UNAVAILABLE_REASON = 'definition not available';
+
 function missingDefinitions(
   schema: readonly IndexerResource[],
   specs: readonly IndexerSpec[],
@@ -48,38 +51,60 @@ function missingDefinitions(
   return specs.map((spec) => spec.definitionName).filter((name) => !available.has(name));
 }
 
+function definitionsLoaded(schema: readonly IndexerResource[]): boolean {
+  return schema.some((item) => item.implementation === 'Cardigann');
+}
+
+function summarizeReason(reason: string): string {
+  const firstSentence = (reason.trim().split(/\.(?:\s|$)/, 1)[0] ?? '').trim();
+  return firstSentence.length > MAX_REASON_LENGTH
+    ? `${firstSentence.slice(0, MAX_REASON_LENGTH - 1).trimEnd()}…`
+    : firstSentence;
+}
+
+function definitionsUnavailable(missing: readonly string[], waitedMs: number): Error {
+  return new Error(
+    `Prowlarr did not load the indexer definitions ${missing.join(', ')} after ` +
+      `${Math.round(waitedMs / 1000)} s. Definitions are downloaded from ` +
+      'https://indexers.prowlarr.com at startup; check that the host has outbound HTTPS access.',
+  );
+}
+
 async function awaitDefinitions(
   client: ProwlarrClient,
   specs: readonly IndexerSpec[],
   signal: AbortSignal,
   options: DefinitionsWaitOptions = {},
 ): Promise<IndexerResource[]> {
+  const now = options.now ?? Date.now;
+  const startedAt = now();
   let missing: string[] = specs.map((spec) => spec.definitionName);
+  let schema: IndexerResource[];
   try {
-    return await pollUntil(
+    schema = await pollUntil(
       async () => {
-        const schema = await client.listIndexerSchema();
-        missing = missingDefinitions(schema, specs);
-        return missing.length === 0 ? schema : undefined;
+        const current = await client.listIndexerSchema();
+        missing = missingDefinitions(current, specs);
+        return missing.length === 0 || definitionsLoaded(current) ? current : undefined;
       },
       {
         timeoutMs: options.timeoutMs ?? DEFINITIONS_TIMEOUT_MS,
         intervalMs: options.intervalMs ?? DEFINITIONS_INTERVAL_MS,
         signal,
         sleep: options.sleep,
-        now: options.now,
+        now,
       },
     );
   } catch (error) {
     if (error instanceof PollTimeoutError) {
-      throw new Error(
-        `Prowlarr did not load the indexer definitions ${missing.join(', ')} after ` +
-          `${Math.round(error.waitedMs / 1000)} s. Definitions are downloaded from ` +
-          'https://indexers.prowlarr.com at startup; check that the host has outbound HTTPS access.',
-      );
+      throw definitionsUnavailable(missing, error.waitedMs);
     }
     throw error;
   }
+  if (specs.length > 0 && missing.length === specs.length) {
+    throw definitionsUnavailable(missing, now() - startedAt);
+  }
+  return schema;
 }
 
 export async function provisionProwlarr(
@@ -142,13 +167,17 @@ export async function provisionProwlarr(
   for (const spec of specs) {
     progress(`Configuring indexer ${spec.definitionName}`);
     const schemaItem = schema.find((item) => item.definitionName === spec.definitionName);
-    const change = await client.ensureIndexer(spec, schemaItem as IndexerResource, {
+    if (!schemaItem) {
+      skipped.push(`${spec.definitionName} (${DEFINITION_UNAVAILABLE_REASON})`);
+      continue;
+    }
+    const change = await client.ensureIndexer(spec, schemaItem, {
       appProfileId,
       flaresolverrTagId: tag.id,
       existing,
     });
     if (change.result === 'skipped') {
-      skipped.push(`${change.definitionName} (${change.reason})`);
+      skipped.push(`${change.definitionName} (${summarizeReason(change.reason)})`);
       continue;
     }
     registered += 1;

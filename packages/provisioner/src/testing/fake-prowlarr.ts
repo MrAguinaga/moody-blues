@@ -1,6 +1,7 @@
 import type { ArrKind } from '../arr/arr.types';
 import type { FetchLike } from '../http/http.types';
 import type { ProviderField } from '../http/provider-fields';
+import { PROWLARR_INDEXERS } from '../prowlarr/prowlarr.indexers';
 import { type FakeRequest, toFakeRequest } from './fake-fetch';
 
 type Resource = Record<string, unknown>;
@@ -42,7 +43,7 @@ export interface FakeProwlarr {
 }
 
 const MASK = '********';
-const DEFAULT_DEFINITIONS: readonly string[] = ['1337x', 'thepiratebay', 'yts', 'eztv', 'nyaasi'];
+const DEFAULT_DEFINITIONS: readonly string[] = PROWLARR_INDEXERS.map((spec) => spec.definitionName);
 const DISPLAY_NAMES: Readonly<Record<string, string>> = {
   '1337x': '1337x',
   thepiratebay: 'The Pirate Bay',
@@ -51,10 +52,14 @@ const DISPLAY_NAMES: Readonly<Record<string, string>> = {
   nyaasi: 'Nyaa.si',
 };
 const DEFINITION_SETTINGS: Readonly<Record<string, ProviderField[]>> = {
-  '1337x': [field('uploader', null), field('sort', 2, 'select')],
+  '1337x': [
+    field('uploader', null),
+    field('sort', 2, 'select'),
+    field('info_flaresolverr', null, 'info'),
+  ],
   thepiratebay: [field('apiurl', 'apibay.org')],
   yts: [field('apiurl', 'movies-api.accel.li')],
-  eztv: [],
+  eztv: [field('info_flaresolverr', null, 'info')],
   nyaasi: [field('prefer_magnet_links', true, 'checkbox')],
 };
 const APPLICATION_SCHEMAS: Readonly<Record<string, { port: number; fields: ProviderField[] }>> = {

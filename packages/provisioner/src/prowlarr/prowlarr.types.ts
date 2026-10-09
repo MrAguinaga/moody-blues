@@ -64,7 +64,6 @@ export interface IndexerStatusResource {
 
 export interface IndexerSpec {
   definitionName: string;
-  flaresolverr: boolean;
   minimumSeeders: number;
 }
 

@@ -25,6 +25,7 @@ import type {
 const API_ROOT = '/api/v1';
 
 export const FLARESOLVERR_TAG_LABEL = 'flaresolverr';
+export const FLARESOLVERR_FIELD = 'info_flaresolverr';
 export const FLARESOLVERR_PROXY_NAME = 'FlareSolverr';
 export const STANDARD_APP_PROFILE_NAME = 'Standard';
 export const INDEXER_PRIORITY = 25;
@@ -230,7 +231,8 @@ export function createProwlarrClient(options: ProwlarrClientOptions): ProwlarrCl
     context: IndexerContext,
   ): Promise<IndexerChange> {
     const { definitionName } = spec;
-    const tags = spec.flaresolverr ? [context.flaresolverrTagId] : [];
+    const needsFlaresolverr = schemaItem.fields.some((entry) => entry.name === FLARESOLVERR_FIELD);
+    const tags = needsFlaresolverr ? [context.flaresolverrTagId] : [];
     const seeders = { [MIN_SEEDERS_FIELD]: spec.minimumSeeders };
     const existing = context.existing.find((indexer) => indexer.definitionName === definitionName);
 
