@@ -122,7 +122,7 @@ describe('evaluateInvariants', () => {
       expect(drifts(view)).toEqual(['vfs-cache-size']);
     });
 
-    it.each(['3GB', '2049M', '1T'])('fails when vfs_cache_max_size is %s, above 2 GiB', (size) => {
+    it.each(['3G', '2049M', '1T'])('fails when vfs_cache_max_size is %s, above 2 GiB', (size) => {
       const view = viewOf((config) => {
         rclone(config).vfs_cache_max_size = size;
       });
@@ -130,7 +130,7 @@ describe('evaluateInvariants', () => {
       expect(drifts(view)).toEqual(['vfs-cache-size']);
     });
 
-    it.each(['2GB', '2G', '2048M', '512M'])('accepts vfs_cache_max_size %s', (size) => {
+    it.each(['2G', '2GiB', '2048M', '512M'])('accepts vfs_cache_max_size %s', (size) => {
       const view = viewOf((config) => {
         rclone(config).vfs_cache_max_size = size;
       });
@@ -138,15 +138,18 @@ describe('evaluateInvariants', () => {
       expect(drifts(view)).toEqual([]);
     });
 
-    it('fails when vfs_cache_max_size is not a size', () => {
-      const view = viewOf((config) => {
-        rclone(config).vfs_cache_max_size = 'big';
-      });
+    it.each(['big', '2GB', '2048'])(
+      'fails when vfs_cache_max_size is %s, which rclone cannot parse',
+      (size) => {
+        const view = viewOf((config) => {
+          rclone(config).vfs_cache_max_size = size;
+        });
 
-      const check = evaluateInvariants(view, EXPECTED).find(({ id }) => id === 'vfs-cache-size');
-      expect(check?.status).toBe('drift');
-      expect(check?.actual).toContain('is not a size');
-    });
+        const check = evaluateInvariants(view, EXPECTED).find(({ id }) => id === 'vfs-cache-size');
+        expect(check?.status).toBe('drift');
+        expect(check?.actual).toContain('is not a valid rclone size');
+      },
+    );
 
     it('fails when vfs_cache_max_age is absent', () => {
       const view = viewOf((config) => {

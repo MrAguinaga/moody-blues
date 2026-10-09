@@ -38,7 +38,7 @@ describe('renderDecypharrConfig', () => {
     const { rclone } = render().mount;
 
     expect(rclone.vfs_cache_mode).toBe('writes');
-    expect(rclone.vfs_cache_max_size).toBeDefined();
+    expect(rclone.vfs_cache_max_size).toBe('2G');
     expect(parseSizeBytes(rclone.vfs_cache_max_size)).toBeLessThanOrEqual(2 * 1024 ** 3);
     expect(rclone.vfs_cache_max_age).toBe('24h');
   });

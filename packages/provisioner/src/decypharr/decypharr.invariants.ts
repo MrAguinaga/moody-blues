@@ -48,7 +48,7 @@ function cacheSize(view: DecypharrConfigView): Evaluation {
         problems.push(`vfs_cache_max_size ${show(size)} exceeds 2 GiB`);
       }
     } catch {
-      problems.push(`vfs_cache_max_size ${show(size)} is not a size`);
+      problems.push(`vfs_cache_max_size ${show(size)} is not a valid rclone size`);
     }
   }
   if (!age) {

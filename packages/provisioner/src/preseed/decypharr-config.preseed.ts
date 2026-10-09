@@ -79,7 +79,7 @@ export function renderDecypharrConfig(input: DecypharrSeedInput): string {
       mount_path: '/mnt/debrid',
       rclone: {
         vfs_cache_mode: 'writes',
-        vfs_cache_max_size: '2GB',
+        vfs_cache_max_size: '2G',
         vfs_cache_max_age: '24h',
         cache_dir: '/app/cache/rclone',
         uid: input.host.puid,
