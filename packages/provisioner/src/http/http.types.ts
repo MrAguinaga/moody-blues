@@ -4,7 +4,9 @@ export type Sleep = (ms: number, signal?: AbortSignal) => Promise<void>;
 
 export type RandomSource = () => number;
 
-export type HttpMethod = 'GET' | 'HEAD' | 'POST' | 'PUT' | 'DELETE';
+export type HttpMethod = 'GET' | 'HEAD' | 'POST' | 'PUT' | 'DELETE' | 'PROPFIND';
+
+export type ResponseType = 'json' | 'text' | 'status';
 
 export type QueryValue = string | number | boolean;
 
@@ -34,6 +36,7 @@ export interface RequestOptions {
   signal?: AbortSignal;
   timeoutMs?: number;
   retry?: Partial<RetryPolicy>;
+  responseType?: ResponseType;
 }
 
 export type BodylessRequestOptions = Omit<RequestOptions, 'body'>;

@@ -25,7 +25,7 @@ import type {
 const DEFAULT_TIMEOUT_MS = 30_000;
 const BODY_SNIPPET_LENGTH = 200;
 const RESET_BEFORE_RESPONSE_CODES: readonly string[] = ['ECONNREFUSED', 'ENOTFOUND', 'ECONNRESET'];
-const IDEMPOTENT_METHODS: readonly HttpMethod[] = ['GET', 'HEAD', 'PUT', 'DELETE'];
+const IDEMPOTENT_METHODS: readonly HttpMethod[] = ['GET', 'HEAD', 'PUT', 'DELETE', 'PROPFIND'];
 const POST_RETRYABLE_STATUSES: readonly number[] = [429, 503];
 
 function sanitizeUrl(baseUrl: string, path: string): URL {
@@ -147,6 +147,12 @@ export function createHttpClient(options: HttpClientOptions): HttpClient {
         response.status === 400 ? parseValidation(text) : [],
         parseRetryAfter(response.headers.get('retry-after')),
       );
+    }
+    if (request.responseType === 'status') {
+      return response.status as T;
+    }
+    if (request.responseType === 'text') {
+      return text as T;
     }
     if (text.trim() === '') {
       return undefined as T;

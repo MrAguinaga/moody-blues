@@ -26,6 +26,7 @@ describe('PROVISIONING_PIPELINE', () => {
       'master-profile',
       'prowlarr-provision',
       'bazarr-provision',
+      'decypharr-verify',
     ]);
   });
 

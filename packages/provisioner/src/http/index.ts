@@ -24,6 +24,7 @@ export type {
   QueryValue,
   RandomSource,
   RequestOptions,
+  ResponseType,
   RetryPolicy,
   Sleep,
 } from './http.types';

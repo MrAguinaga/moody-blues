@@ -802,7 +802,8 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
       return json(200, state.downloadClients.map(maskPasswords));
     }
     if (method === 'POST' && path === '/api/v3/downloadclient/test') {
-      return validateClient(body, undefined, false) ?? json(200, {});
+      const existingId = typeof body.id === 'number' ? body.id : undefined;
+      return validateClient(body, existingId, false) ?? json(200, {});
     }
     if (method === 'POST' && path === '/api/v3/downloadclient') {
       const failure = validateClient(body, undefined, query.forceSave === 'true');

@@ -133,6 +133,46 @@ describe('createHttpClient requests', () => {
   });
 });
 
+describe('createHttpClient response types', () => {
+  it('returns the raw body as text without parsing it', async () => {
+    const { fake, client } = setup();
+    fake.on('GET', '/version', { text: 'v4.3.9' });
+
+    await expect(client.get('/version', { responseType: 'text' })).resolves.toBe('v4.3.9');
+  });
+
+  it('returns only the status code for a WebDAV PROPFIND answered with a 207 XML body', async () => {
+    const { fake, client } = setup();
+    fake.on('PROPFIND', '/webdav/', { status: 207, text: '<D:multistatus xmlns:D="DAV:"/>' });
+
+    const status = await client.request('PROPFIND', '/webdav/', {
+      headers: { Depth: '0' },
+      responseType: 'status',
+    });
+
+    expect(status).toBe(207);
+    expect(fake.requests[0]).toMatchObject({ method: 'PROPFIND', headers: { depth: '0' } });
+  });
+
+  it('retries PROPFIND on transient statuses like other idempotent methods', async () => {
+    const { fake, client } = setup();
+    fake.on('PROPFIND', '/webdav/', { status: 503 }, { status: 207, text: '' });
+
+    await expect(client.request('PROPFIND', '/webdav/', { responseType: 'status' })).resolves.toBe(
+      207,
+    );
+  });
+
+  it('still fails on error statuses when the response type is text or status', async () => {
+    const { fake, client } = setup({ retry: { attempts: 1 } });
+    fake.on('PROPFIND', '/webdav/', { status: 401, text: 'nope' });
+
+    await expect(
+      client.request('PROPFIND', '/webdav/', { responseType: 'status' }),
+    ).rejects.toMatchObject({ status: 401 });
+  });
+});
+
 describe('createHttpClient retries', () => {
   it('retries a GET on 503 and succeeds, sleeping with exponential backoff', async () => {
     const { fake, sleep, client } = setup();
