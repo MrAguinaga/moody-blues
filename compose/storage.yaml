@@ -15,6 +15,7 @@ services:
       PGID: ${PGID:?PGID is required}
       UMASK: '002'
       TZ: ${TZ:-UTC}
+      RCLONE_LOW_LEVEL_RETRIES: '1'
     devices:
       - /dev/fuse:/dev/fuse:rwm
     cap_add:

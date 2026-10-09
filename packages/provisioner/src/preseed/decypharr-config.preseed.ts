@@ -48,6 +48,7 @@ export function renderDecypharrConfig(input: DecypharrSeedInput): string {
     refresh_interval: '30s',
     remove_stalled_after: '6h',
     allow_samples: false,
+    skip_pre_cache: true,
     debrids: [
       {
         provider: 'realdebrid',

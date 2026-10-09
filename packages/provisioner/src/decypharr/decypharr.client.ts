@@ -126,6 +126,7 @@ export function parseConfigView(raw: unknown): DecypharrConfigView {
     repairAutoRepair: flag(at(raw, 'repair', 'auto_repair')),
     queueCleanupRules: queueCleanupRules(raw),
     hearsayDisabled: flag(at(raw, 'hearsay', 'disabled')),
+    skipPreCache: flag(at(raw, 'skip_pre_cache')),
   };
 }
 

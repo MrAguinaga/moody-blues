@@ -128,7 +128,7 @@ describe('verifyDecypharr', () => {
       brokenEntries: 0,
       mount: { webdavStatus: 207, allFolderVisible: true },
     });
-    expect(report.invariants).toHaveLength(13);
+    expect(report.invariants).toHaveLength(14);
     expect(report.links).toEqual(
       (['sonarr', 'radarr'] as const).map((app) => ({
         app,
@@ -442,7 +442,7 @@ describe('decypharr-verify step', () => {
     expect(report.success).toBe(true);
     expect(report.steps[0]).toMatchObject({ id: 'decypharr-verify', status: 'unchanged' });
     expect(report.steps[0]!.detail).toBe(
-      'Decypharr 2.7, 13 invariants ok, Sonarr and Radarr linked, WebDAV 207, __all__ visible, ' +
+      'Decypharr 2.7, 14 invariants ok, Sonarr and Radarr linked, WebDAV 207, __all__ visible, ' +
         'warning: 1 broken repair entry awaiting automatic repair',
     );
     expectNoSecrets(report.steps[0]!.detail!);

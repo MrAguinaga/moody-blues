@@ -173,6 +173,11 @@ export const INVARIANT_DEFINITIONS: readonly InvariantDefinition[] = [
     evaluate: (view) => equals(true, view.hearsayDisabled),
   },
   {
+    id: 'pre-cache',
+    description: 'Completed downloads are not read back to warm the cache',
+    evaluate: (view) => equals(true, view.skipPreCache),
+  },
+  {
     id: 'rate-limit',
     description: 'The debrid provider is rate limited',
     evaluate: (view) => ({

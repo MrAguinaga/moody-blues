@@ -66,6 +66,10 @@ describe('renderDecypharrConfig', () => {
     expect(render().hearsay).toEqual({ disabled: true });
   });
 
+  it('skips the cache warm-up read of completed downloads', () => {
+    expect(render().skip_pre_cache).toBe(true);
+  });
+
   it('points the arrs at internal urls without a trailing slash', () => {
     const { arrs } = render();
 

@@ -28,6 +28,7 @@ export interface DecypharrConfigView {
   repairAutoRepair: boolean;
   queueCleanupRules: QueueCleanupRule[];
   hearsayDisabled: boolean;
+  skipPreCache: boolean;
 }
 
 export interface DecypharrArr {
@@ -52,6 +53,7 @@ export const INVARIANT_IDS = [
   'mount',
   'auth',
   'hearsay',
+  'pre-cache',
   'rate-limit',
   'repair',
   'queue-cleanup',

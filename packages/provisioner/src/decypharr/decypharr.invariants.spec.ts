@@ -49,11 +49,11 @@ const rclone = (config: Raw) => mount(config).rclone as Raw;
 const debrid = (config: Raw) => (config.debrids as Raw[])[0]!;
 
 describe('evaluateInvariants', () => {
-  it('evaluates the thirteen invariants in a stable order', () => {
+  it('evaluates the fourteen invariants in a stable order', () => {
     const checks = evaluateInvariants(viewOf(), EXPECTED);
 
     expect(checks.map(({ id }) => id)).toEqual([...INVARIANT_IDS]);
-    expect(INVARIANT_DEFINITIONS).toHaveLength(13);
+    expect(INVARIANT_DEFINITIONS).toHaveLength(14);
   });
 
   it('finds no drift in the configuration the pre-seeding engine writes', () => {
@@ -250,6 +250,13 @@ describe('evaluateInvariants', () => {
       ['absent', (config: Raw) => delete config.hearsay],
     ])('fails when hearsay is %s', (_label, mutate) => {
       expect(drifts(viewOf(mutate))).toEqual(['hearsay']);
+    });
+
+    it.each([
+      ['enabled', (config: Raw) => (config.skip_pre_cache = false)],
+      ['absent', (config: Raw) => delete config.skip_pre_cache],
+    ])('fails when the cache warm-up is %s', (_label, mutate) => {
+      expect(drifts(viewOf(mutate))).toEqual(['pre-cache']);
     });
 
     it.each(['', undefined])('fails when the rate limit is %j', (value) => {

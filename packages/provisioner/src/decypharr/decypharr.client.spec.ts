@@ -98,6 +98,7 @@ describe('createDecypharrClient authenticated calls', () => {
       categories: ['sonarr', 'radarr'],
       arrNames: ['sonarr', 'radarr'],
       hearsayDisabled: true,
+      skipPreCache: true,
     });
   });
 
@@ -187,6 +188,7 @@ describe('response parsing', () => {
       repairAutoRepair: false,
       queueCleanupRules: [],
       hearsayDisabled: false,
+      skipPreCache: false,
     });
   });
 
