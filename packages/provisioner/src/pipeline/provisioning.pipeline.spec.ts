@@ -21,6 +21,7 @@ describe('PROVISIONING_PIPELINE', () => {
       'containers-up',
       'wait-healthy',
       'gateway-reload',
+      'jellyfin-provision',
       'sonarr-provision',
       'radarr-provision',
       'master-profile',

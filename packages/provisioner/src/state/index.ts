@@ -3,11 +3,13 @@ export { parseEnvFile, serializeEnvFile } from './env-file.utils';
 export {
   ENV_KEY_ORDER,
   HOST_ENV_KEYS,
+  ISSUED_KEY_ENV_KEYS,
   SERVICE_KEY_ENV_KEYS,
   USER_SECRET_ENV_KEYS,
 } from './env-keys.constants';
 export { readEnv, writeEnv } from './env-store.service';
 export { buildHostEnv } from './host-env.service';
+export { type IssuedKeyEnvKey, persistIssuedKey, readIssuedKey } from './issued-keys.service';
 export {
   ensureServiceKeys,
   generateApiKey,

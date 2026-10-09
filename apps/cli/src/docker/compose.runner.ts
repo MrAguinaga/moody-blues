@@ -1,6 +1,10 @@
 import { spawn } from 'node:child_process';
 
-import { SERVICE_KEY_ENV_KEYS, USER_SECRET_ENV_KEYS } from '@moody-blues/provisioner';
+import {
+  ISSUED_KEY_ENV_KEYS,
+  SERVICE_KEY_ENV_KEYS,
+  USER_SECRET_ENV_KEYS,
+} from '@moody-blues/provisioner';
 
 import type { Installation } from '../installation';
 import { buildComposeFiles, resolveComposeDir } from './compose.files';
@@ -43,7 +47,7 @@ export interface CreateComposeRunnerOptions {
 }
 
 function secretValues(env: Record<string, string>): string[] {
-  return [...USER_SECRET_ENV_KEYS, ...SERVICE_KEY_ENV_KEYS]
+  return [...USER_SECRET_ENV_KEYS, ...SERVICE_KEY_ENV_KEYS, ...ISSUED_KEY_ENV_KEYS]
     .map((key) => env[key])
     .filter((value): value is string => value !== undefined && value.length >= MIN_SECRET_LENGTH);
 }

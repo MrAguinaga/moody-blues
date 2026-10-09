@@ -25,8 +25,11 @@ export const SERVICE_KEY_ENV_KEYS = [
   'SEERR_API_KEY',
 ] as const;
 
+export const ISSUED_KEY_ENV_KEYS = ['JELLYFIN_API_KEY'] as const;
+
 export const ENV_KEY_ORDER: readonly string[] = [
   ...HOST_ENV_KEYS,
   ...USER_SECRET_ENV_KEYS,
   ...SERVICE_KEY_ENV_KEYS,
+  ...ISSUED_KEY_ENV_KEYS,
 ];

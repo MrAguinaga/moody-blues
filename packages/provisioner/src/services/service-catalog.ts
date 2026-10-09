@@ -5,6 +5,8 @@ export const SERVICE_IDS = [
   'bazarr',
   'decypharr',
   'flaresolverr',
+  'jellyfin',
+  'seerr',
 ] as const;
 
 export type ServiceId = (typeof SERVICE_IDS)[number];
@@ -23,6 +25,8 @@ const SERVICE_PORTS: Record<ServiceId, number> = {
   bazarr: 6767,
   decypharr: 8282,
   flaresolverr: 8191,
+  jellyfin: 8096,
+  seerr: 5055,
 };
 
 function describeService(id: ServiceId): ServiceDescriptor {

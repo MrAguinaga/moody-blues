@@ -33,6 +33,8 @@ describe('SERVICE_CATALOG', () => {
       ['bazarr', 6767],
       ['decypharr', 8282],
       ['flaresolverr', 8191],
+      ['jellyfin', 8096],
+      ['seerr', 5055],
     ]);
   });
 
