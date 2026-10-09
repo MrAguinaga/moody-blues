@@ -9,7 +9,7 @@ function step(id: string): ProvisionStep {
 }
 
 describe('PROVISIONING_PIPELINE', () => {
-  it('places the seed steps between gateway-config and containers-up', () => {
+  it('places the seed steps before containers-up and the service provisioning steps last', () => {
     expect(PROVISIONING_PIPELINE.map((entry) => entry.id)).toEqual([
       'host-tree',
       'persist-state',
@@ -21,6 +21,8 @@ describe('PROVISIONING_PIPELINE', () => {
       'containers-up',
       'wait-healthy',
       'gateway-reload',
+      'sonarr-provision',
+      'radarr-provision',
     ]);
   });
 

@@ -1,6 +1,6 @@
 export { type InsertPosition, insertSteps } from './compose-pipeline';
 export { INFRASTRUCTURE_STEPS } from './infrastructure.steps';
-export { GATEWAY_CHANGED_FLAG } from './pipeline.flags';
+export { GATEWAY_CHANGED_FLAG, ROTATE_CREDENTIALS_FLAG } from './pipeline.flags';
 export { runPipeline } from './pipeline.runner';
 export {
   type ContainerRuntime,
