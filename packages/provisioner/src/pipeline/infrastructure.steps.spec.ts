@@ -96,7 +96,7 @@ describe('INFRASTRUCTURE_STEPS', () => {
     expect(env.SONARR_API_KEY).toMatch(/^[0-9a-f]{32}$/);
     expect(runtime.up).toHaveBeenCalledOnce();
     expect(runtime.waitHealthy).toHaveBeenCalledOnce();
-    expect(runtime.reloadGateway).not.toHaveBeenCalled();
+    expect(runtime.reloadGateway).toHaveBeenCalledOnce();
   });
 
   it('reports unchanged for every file step on a second run and keeps the generated keys', async () => {
