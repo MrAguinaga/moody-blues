@@ -25,7 +25,7 @@ describe('evaluateTranscoding', () => {
     const result = evaluateTranscoding({ mode: 'off', hardware });
 
     expect(result.status).toBe('success');
-    expect(result.message).toContain('Video is never transcoded.');
+    expect(result.message).toContain('Direct Play only, nothing is transcoded.');
   });
 
   it('succeeds in cpu mode with a GPU and suggests hardware', () => {

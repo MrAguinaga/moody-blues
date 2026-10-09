@@ -8,11 +8,11 @@ import {
 } from './jellyfin-transcoding.settings';
 
 describe('buildPlaybackPolicy', () => {
-  it('keeps video as Direct Play or Direct Stream in off mode while audio and remux stay allowed', () => {
+  it('allows Direct Play only in off mode', () => {
     expect(buildPlaybackPolicy('off')).toEqual({
       EnableVideoPlaybackTranscoding: false,
-      EnableAudioPlaybackTranscoding: true,
-      EnablePlaybackRemuxing: true,
+      EnableAudioPlaybackTranscoding: false,
+      EnablePlaybackRemuxing: false,
     });
   });
 

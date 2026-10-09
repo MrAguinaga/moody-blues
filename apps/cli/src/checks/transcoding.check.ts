@@ -54,11 +54,11 @@ export function evaluateTranscoding({ mode, hardware }: TranscodingCheckInput): 
           ...DEFINITION,
           status: 'warning',
           message: 'CPU transcoding is selected and no GPU was found; the CPU may saturate',
-          suggestion: 'Choose "off" to never transcode video, or run on a host with a GPU.',
+          suggestion: 'Choose "off" for Direct Play only, or run on a host with a GPU.',
         };
   }
 
-  const prefix = mode === 'off' ? 'Video is never transcoded. ' : '';
+  const prefix = mode === 'off' ? 'Direct Play only, nothing is transcoded. ' : '';
   return { ...DEFINITION, status: 'success', message: `${prefix}${detection}` };
 }
 

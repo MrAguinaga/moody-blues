@@ -122,8 +122,8 @@ describe('provisionTranscoding', () => {
     for (const name of ['Admin', 'Friend']) {
       expect(policyOf(server, name)).toMatchObject({
         EnableVideoPlaybackTranscoding: false,
-        EnableAudioPlaybackTranscoding: true,
-        EnablePlaybackRemuxing: true,
+        EnableAudioPlaybackTranscoding: false,
+        EnablePlaybackRemuxing: false,
       });
     }
     expect(server.state.encoding.HardwareAccelerationType).toBe('none');
@@ -164,7 +164,7 @@ describe('provisionTranscoding', () => {
   });
 
   it.each([
-    ['off', [false, true, true]],
+    ['off', [false, false, false]],
     ['cpu', [true, true, true]],
     ['hardware', [true, true, true]],
   ] as const)('sets the playback policy of %s mode', async (mode, expected) => {
@@ -198,6 +198,8 @@ describe('provisionTranscoding', () => {
     expect(policyOf(server, 'Friend')).toEqual({
       ...before,
       EnableVideoPlaybackTranscoding: false,
+      EnableAudioPlaybackTranscoding: false,
+      EnablePlaybackRemuxing: false,
     });
     expect(policyOf(server, 'Friend')).toMatchObject({
       AuthenticationProviderId: 'Custom.AuthProvider',
@@ -208,7 +210,14 @@ describe('provisionTranscoding', () => {
   it('writes only the users whose policy drifted', async () => {
     const server = setup({
       extraUsers: [
-        { name: 'Done', policy: { EnableVideoPlaybackTranscoding: false } },
+        {
+          name: 'Done',
+          policy: {
+            EnableVideoPlaybackTranscoding: false,
+            EnableAudioPlaybackTranscoding: false,
+            EnablePlaybackRemuxing: false,
+          },
+        },
         { name: 'Pending' },
       ],
     });
@@ -239,6 +248,8 @@ describe('provisionTranscoding', () => {
     expect(afterCpu.users[0]?.policy).toEqual({
       ...afterOff.users[0]?.policy,
       EnableVideoPlaybackTranscoding: true,
+      EnableAudioPlaybackTranscoding: true,
+      EnablePlaybackRemuxing: true,
     });
     expect(backToOff.detail).toBe('playback policy of 1 of 1 users');
     expect(server.state.users[0]?.policy).toEqual(afterOff.users[0]?.policy);
