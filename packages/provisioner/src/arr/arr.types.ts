@@ -18,16 +18,6 @@ export interface ArrConfigResource {
   [key: string]: unknown;
 }
 
-export interface HostConfigResource extends ArrConfigResource {
-  authenticationMethod: string;
-  authenticationRequired: string;
-  analyticsEnabled: boolean;
-  logLevel: string;
-  username: string;
-  password: string;
-  passwordConfirmation: string;
-}
-
 export interface SystemStatusResource {
   appName: string;
   version: string;

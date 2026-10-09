@@ -26,15 +26,6 @@ export interface DecypharrClientSettings {
   comparableFields: Record<string, unknown>;
 }
 
-export function buildHostSettings(): Record<string, unknown> {
-  return {
-    authenticationMethod: 'forms',
-    authenticationRequired: 'enabled',
-    analyticsEnabled: false,
-    logLevel: 'info',
-  };
-}
-
 export function buildDecypharrClient(kind: ArrKind, apiKey: string): DecypharrClientSettings {
   const categoryFields =
     kind === 'sonarr'

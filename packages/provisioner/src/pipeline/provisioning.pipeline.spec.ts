@@ -24,6 +24,7 @@ describe('PROVISIONING_PIPELINE', () => {
       'sonarr-provision',
       'radarr-provision',
       'master-profile',
+      'prowlarr-provision',
     ]);
   });
 

@@ -17,7 +17,6 @@ import {
 import {
   buildDecypharrClient,
   buildDownloadClientConfigSettings,
-  buildHostSettings,
   buildIndexerSettings,
   buildMediaManagementSettings,
   buildNamingSettings,
@@ -27,7 +26,7 @@ import {
   resolveUiLanguageId,
   ROOT_FOLDER_PATHS,
 } from './arr.settings';
-import type { ArrKind, DownloadClientResource, HostConfigResource } from './arr.types';
+import type { ArrKind, DownloadClientResource } from './arr.types';
 
 const ARR_STEP_SCOPES: readonly ProvisionScope[] = ['setup', 'reset', 'config', 'update'];
 const ARR_TITLES: Readonly<Record<ArrKind, string>> = {
@@ -50,32 +49,6 @@ export interface ProvisionArrOptions {
 }
 
 const trimSlash = (path: string) => path.replace(/\/+$/, '');
-
-async function ensureAdminUser(client: ArrClient, ctx: ProvisionContext): Promise<boolean> {
-  const { adminUsername, adminPassword } = ctx.secrets;
-  const host = await client.getConfig<HostConfigResource>('host');
-  const desired = buildHostSettings();
-
-  const credentialsStale =
-    ctx.flags.get(ROTATE_CREDENTIALS_FLAG) === true ||
-    host.authenticationMethod !== 'forms' ||
-    host.username !== adminUsername.toLowerCase();
-  const settingsDrifted = Object.entries(desired).some(
-    ([key, value]) => !valuesEqual(host[key], value),
-  );
-  if (!credentialsStale && !settingsDrifted) {
-    return false;
-  }
-
-  await client.putConfig('host', {
-    ...host,
-    ...desired,
-    ...(credentialsStale
-      ? { username: adminUsername, password: adminPassword, passwordConfirmation: adminPassword }
-      : {}),
-  });
-  return true;
-}
 
 async function ensureRootFolder(client: ArrClient, path: string): Promise<boolean> {
   const folders = await client.listRootFolders();
@@ -164,7 +137,14 @@ export async function provisionArr(
   });
 
   progress('Configuring administrator account');
-  record((await ensureAdminUser(client, ctx)) && 'administrator account');
+  const { adminUsername, adminPassword } = ctx.secrets;
+  record(
+    (await client.ensureAdminUser({
+      username: adminUsername,
+      password: adminPassword,
+      rotate: ctx.flags.get(ROTATE_CREDENTIALS_FLAG) === true,
+    })) && 'administrator account',
+  );
 
   progress('Configuring root folder');
   record((await ensureRootFolder(client, ROOT_FOLDER_PATHS[kind])) && 'root folder');

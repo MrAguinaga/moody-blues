@@ -15,7 +15,6 @@ export {
 export {
   buildDecypharrClient,
   buildDownloadClientConfigSettings,
-  buildHostSettings,
   buildIndexerSettings,
   buildMediaManagementSettings,
   buildNamingSettings,
@@ -37,7 +36,6 @@ export {
   type CustomFormatSpecificationResource,
   type DownloadClientResource,
   type HealthResource,
-  type HostConfigResource,
   type LanguageResource,
   type QualityProfileFormatItemResource,
   type QualityProfileItemResource,

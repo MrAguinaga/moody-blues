@@ -1,6 +1,7 @@
 import { createHttpClient } from '../http/http.client';
 import type { HttpClient, HttpClientOptions } from '../http/http.types';
 import { valuesEqual } from '../http/provider-fields';
+import { ensureServarrAdminUser, type ServarrAdminCredentials } from '../servarr/servarr-host';
 import type {
   ArrConfigName,
   ArrConfigResource,
@@ -35,6 +36,7 @@ export interface ArrClient {
   readonly http: HttpClient;
   getSystemStatus(): Promise<SystemStatusResource>;
   getHealth(): Promise<HealthResource[]>;
+  ensureAdminUser(credentials: ServarrAdminCredentials): Promise<boolean>;
   getConfig<T extends ArrConfigResource = ArrConfigResource>(name: ArrConfigName): Promise<T>;
   putConfig(name: ArrConfigName, resource: ArrConfigResource): Promise<void>;
   listRootFolders(): Promise<RootFolderResource[]>;
@@ -81,6 +83,7 @@ export function createArrClient(options: ArrClientOptions): ArrClient {
     http,
     getSystemStatus: () => http.get(`${API_ROOT}/system/status`),
     getHealth: () => http.get(`${API_ROOT}/health`),
+    ensureAdminUser: (credentials) => ensureServarrAdminUser(http, API_ROOT, credentials),
     getConfig: (name) => http.get(`${API_ROOT}/config/${name}`),
     putConfig: async (name, resource) => {
       await http.put(`${API_ROOT}/config/${name}/${resource.id}`, resource);

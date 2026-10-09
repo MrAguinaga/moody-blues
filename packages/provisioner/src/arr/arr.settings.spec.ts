@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   buildDecypharrClient,
   buildDownloadClientConfigSettings,
-  buildHostSettings,
   buildIndexerSettings,
   buildMediaManagementSettings,
   buildNamingSettings,
@@ -28,17 +27,6 @@ describe('disk safeguards (ADR-014)', () => {
       rescanAfterRefresh: 'afterManual',
       copyUsingHardlinks: true,
       enableMediaInfo: true,
-    });
-  });
-});
-
-describe('buildHostSettings', () => {
-  it('requires forms authentication and disables analytics', () => {
-    expect(buildHostSettings()).toEqual({
-      authenticationMethod: 'forms',
-      authenticationRequired: 'enabled',
-      analyticsEnabled: false,
-      logLevel: 'info',
     });
   });
 });
