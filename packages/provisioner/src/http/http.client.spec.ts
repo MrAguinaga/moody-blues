@@ -94,6 +94,19 @@ describe('createHttpClient requests', () => {
     expect(fake.requests[1]?.body).toEqual({ name: 'y' });
   });
 
+  it('sends URLSearchParams bodies as url-encoded forms with repeated keys', async () => {
+    const { fake, client } = setup();
+    fake.on('POST', '/form', { status: 204 });
+    const form = new URLSearchParams();
+    form.append('tag', 'a b');
+    form.append('tag', 'c&d');
+
+    await expect(client.post('/form', form)).resolves.toBeUndefined();
+
+    expect(fake.requests[0]?.headers['content-type']).toBe('application/x-www-form-urlencoded');
+    expect(fake.requests[0]?.body).toBe('tag=a+b&tag=c%26d');
+  });
+
   it('accepts every 2xx and returns undefined for empty bodies', async () => {
     const { fake, client } = setup();
     fake.on('DELETE', '/thing/1', { status: 204 });

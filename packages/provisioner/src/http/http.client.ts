@@ -56,6 +56,13 @@ function isRetryableFailure(method: HttpMethod, error: ProvisionHttpError): bool
   return false;
 }
 
+function serializeBody(body: unknown): string | undefined {
+  if (body === undefined) {
+    return undefined;
+  }
+  return body instanceof URLSearchParams ? body.toString() : JSON.stringify(body);
+}
+
 function parseValidation(text: string): ValidationFailure[] {
   try {
     const parsed: unknown = JSON.parse(text);
@@ -100,9 +107,11 @@ export function createHttpClient(options: HttpClientOptions): HttpClient {
       ...options.headers,
       ...request.headers,
     };
-    const hasBody = request.body !== undefined;
-    if (hasBody) {
-      headers['Content-Type'] = 'application/json';
+    if (request.body !== undefined) {
+      headers['Content-Type'] =
+        request.body instanceof URLSearchParams
+          ? 'application/x-www-form-urlencoded'
+          : 'application/json';
     }
 
     const fail = (error: unknown): ProvisionHttpError => {
@@ -121,7 +130,7 @@ export function createHttpClient(options: HttpClientOptions): HttpClient {
       response = await fetchImpl(url.toString(), {
         method,
         headers,
-        body: hasBody ? JSON.stringify(request.body) : undefined,
+        body: serializeBody(request.body),
         signal: AbortSignal.any([...callerSignals, timeout]),
       });
       text = await response.text();
