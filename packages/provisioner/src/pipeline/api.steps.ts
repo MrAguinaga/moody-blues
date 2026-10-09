@@ -4,6 +4,7 @@ import { decypharrVerifyStep } from '../decypharr/decypharr-verify.step';
 import { jellyfinProvisionStep } from '../jellyfin/jellyfin-provision.step';
 import { masterProfileStep } from '../profile/master-profile.step';
 import { prowlarrProvisionStep } from '../prowlarr/prowlarr-provision.step';
+import { seerrProvisionStep } from '../seerr/seerr-provision.step';
 import type { ProvisionStep } from './pipeline.types';
 
 export const API_STEPS: readonly ProvisionStep[] = [
@@ -13,4 +14,5 @@ export const API_STEPS: readonly ProvisionStep[] = [
   prowlarrProvisionStep,
   bazarrProvisionStep,
   decypharrVerifyStep,
+  seerrProvisionStep,
 ];
