@@ -1,18 +1,15 @@
 import { spawn } from 'node:child_process';
 
-import {
-  ISSUED_KEY_ENV_KEYS,
-  SERVICE_KEY_ENV_KEYS,
-  USER_SECRET_ENV_KEYS,
-} from '@moody-blues/provisioner';
-
 import type { Installation } from '../installation';
+import { createLineSplitter } from '../utils/line-splitter.utils';
+import { collectSecretValues, maskSecrets } from '../utils/redact.utils';
 import { buildComposeFiles, resolveComposeDir } from './compose.files';
 import {
   COMPOSE_PROJECT_NAME,
   type ComposeOutput,
   type ComposeRunner,
   type KillOptions,
+  type LogsOptions,
   type PullOptions,
   type RunOptions,
 } from './compose.types';
@@ -25,8 +22,7 @@ import {
 } from './hwaccel.utils';
 
 const STDERR_TAIL_CHARS = 2000;
-const MIN_SECRET_LENGTH = 4;
-const REDACTED = '***';
+const INTERRUPT_EXIT_CODES: readonly number[] = [130, 143];
 
 export class ComposeCommandError extends Error {
   constructor(
@@ -46,15 +42,8 @@ export interface CreateComposeRunnerOptions {
   probe?: HardwareProbe;
 }
 
-function secretValues(env: Record<string, string>): string[] {
-  return [...USER_SECRET_ENV_KEYS, ...SERVICE_KEY_ENV_KEYS, ...ISSUED_KEY_ENV_KEYS]
-    .map((key) => env[key])
-    .filter((value): value is string => value !== undefined && value.length >= MIN_SECRET_LENGTH);
-}
-
 function sanitizeStderr(stderr: string, secrets: string[]): string {
-  const redacted = secrets.reduce((text, secret) => text.split(secret).join(REDACTED), stderr);
-  const trimmed = redacted.trim();
+  const trimmed = maskSecrets(stderr, secrets).trim();
   return trimmed.length > STDERR_TAIL_CHARS ? `…${trimmed.slice(-STDERR_TAIL_CHARS)}` : trimmed;
 }
 
@@ -96,7 +85,7 @@ export function createComposeRunner(
     ...installation.env,
     ...(hardware?.kind === 'vaapi' ? { RENDER_GID: String(hardware.renderGid) } : {}),
   };
-  const secrets = secretValues(installation.env);
+  const secrets = collectSecretValues(installation.env);
 
   function invoke(args: string[], { signal }: RunOptions = {}): Promise<ComposeOutput> {
     const subcommand = args.join(' ');
@@ -125,6 +114,47 @@ export function createComposeRunner(
       child.on('close', (code) => {
         if (code === 0) {
           resolve({ stdout, stderr });
+          return;
+        }
+        reject(new ComposeCommandError(subcommand, code, sanitizeStderr(stderr, secrets)));
+      });
+    });
+  }
+
+  function stream(
+    args: string[],
+    { signal, onLine, follow }: Pick<LogsOptions, 'signal' | 'onLine' | 'follow'>,
+  ): Promise<void> {
+    const subcommand = args.join(' ');
+
+    return new Promise((resolve, reject) => {
+      const child = spawn('docker', [...baseArgs, ...args], {
+        env: childEnv,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        signal,
+      });
+      const lines = createLineSplitter((line) => onLine(maskSecrets(line, secrets)));
+      let stderr = '';
+
+      child.stdout.setEncoding('utf8').on('data', (chunk: string) => lines.push(chunk));
+      child.stderr.setEncoding('utf8').on('data', (chunk: string) => (stderr += chunk));
+
+      child.on('error', (error: NodeJS.ErrnoException) => {
+        if (signal?.aborted) {
+          lines.flush();
+          resolve();
+          return;
+        }
+        const detail =
+          error.code === 'ENOENT' ? 'the docker executable was not found in PATH' : error.message;
+        reject(new ComposeCommandError(subcommand, null, detail));
+      });
+      child.on('close', (code) => {
+        lines.flush();
+        const interrupted =
+          signal?.aborted || (follow && (code === null || INTERRUPT_EXIT_CODES.includes(code)));
+        if (code === 0 || interrupted) {
+          resolve();
           return;
         }
         reject(new ComposeCommandError(subcommand, code, sanitizeStderr(stderr, secrets)));
@@ -171,6 +201,20 @@ export function createComposeRunner(
       await invoke(['kill', ...(unixSignal ? ['-s', unixSignal] : []), ...only], runOptions);
     },
     exec: (service, command, runOptions) => invoke(['exec', '-T', service, ...command], runOptions),
+    logs: (service, { follow, tail, since, timestamps, ...streamOptions }) =>
+      stream(
+        [
+          'logs',
+          '--no-color',
+          '--no-log-prefix',
+          ...(tail === undefined ? [] : ['--tail', String(tail)]),
+          ...(since ? ['--since', since] : []),
+          ...(timestamps ? ['--timestamps'] : []),
+          ...(follow ? ['--follow'] : []),
+          service,
+        ],
+        { ...streamOptions, follow },
+      ),
     reloadGateway: async (runOptions) => {
       await invoke(
         ['exec', '-T', 'caddy', 'caddy', 'reload', '--config', '/etc/caddy/Caddyfile'],

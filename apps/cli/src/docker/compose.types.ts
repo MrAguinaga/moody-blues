@@ -32,6 +32,14 @@ export interface KillOptions extends RunOptions {
   unixSignal?: string;
 }
 
+export interface LogsOptions extends RunOptions {
+  follow?: boolean;
+  tail?: number;
+  since?: string;
+  timestamps?: boolean;
+  onLine: (line: string) => void;
+}
+
 export interface ComposeOutput {
   stdout: string;
   stderr: string;
@@ -47,4 +55,5 @@ export interface ComposeRunner {
   kill(options?: KillOptions): Promise<void>;
   exec(service: string, command: string[], options?: RunOptions): Promise<ComposeOutput>;
   reloadGateway(options?: RunOptions): Promise<void>;
+  logs(service: string, options: LogsOptions): Promise<void>;
 }

@@ -30,6 +30,7 @@ function fakeRunner(overrides: Partial<ComposeRunner> = {}): ComposeRunner {
     kill: vi.fn(async () => undefined),
     exec: vi.fn(async () => ({ stdout: '', stderr: '' })),
     reloadGateway: vi.fn(async () => undefined),
+    logs: vi.fn(async () => undefined),
     ...overrides,
   };
 }

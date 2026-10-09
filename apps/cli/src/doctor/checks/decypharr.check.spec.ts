@@ -274,6 +274,16 @@ describe('debridMountCheck', () => {
     expect(result.suggestion).toContain(`sudo umount -l ${MOUNT}`);
   });
 
+  it('points to the Decypharr logs when the mount is unhealthy for another reason', async () => {
+    verify.mockResolvedValue(report({ mount: { webdavStatus: 500, allFolderVisible: false } }));
+    const { ctx } = withStorage({});
+
+    const result = await debridMountCheck.run(ctx);
+
+    expect(result.status).toBe('error');
+    expect(result.suggestion).toContain('moody-blues logs decypharr');
+  });
+
   it('fails when reading __all__ fails with ENOTCONN', async () => {
     verify.mockResolvedValue(report());
     const { ctx } = withStorage({

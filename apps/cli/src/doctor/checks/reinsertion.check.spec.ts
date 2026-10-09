@@ -39,6 +39,7 @@ describe('reinsertionCheck', () => {
     expect(result.status).toBe('warning');
     expect(result.message).toBe('3 re-insertions in the last 15 minutes');
     expect(result.details).toEqual(['Last re-insertion at 2026-10-09T11:59:00.000Z']);
+    expect(result.suggestion).toContain('moody-blues logs decypharr');
     expect(result.suggestion).toContain('decypharr.log');
   });
 

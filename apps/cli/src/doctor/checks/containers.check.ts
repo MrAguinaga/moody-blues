@@ -35,7 +35,7 @@ export function evaluateContainers(status: StackStatus): DoctorOutcome {
       status: 'error',
       message: summary,
       details: failing.map(describeService),
-      suggestion: `Run "moody-blues start" to bring the stack up; inspect a failing service with "docker compose -p moody-blues logs --tail 100 ${failing[0]?.service}".`,
+      suggestion: `Run "moody-blues start" to bring the stack up; inspect a failing service with "moody-blues logs ${failing[0]?.service}".`,
     };
   }
 

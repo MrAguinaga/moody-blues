@@ -8,22 +8,20 @@ import {
   createJellyfinClient,
   createProwlarrClient,
   createSeerrClient,
-  ISSUED_KEY_ENV_KEYS,
   loadServiceKeys,
   parseUserSecrets,
   type ProvisionContext,
   SERVICE_CATALOG,
-  SERVICE_KEY_ENV_KEYS,
-  USER_SECRET_ENV_KEYS,
 } from '@moody-blues/provisioner';
 
 import { loadCheckContext } from '../checks';
 import { createComposeRunner } from '../docker';
 import { loadInstallation } from '../installation';
+import { collectSecretValues } from '../utils/redact.utils';
 import { REQUEST_TIMEOUT_MS, STACK_QUERY_TIMEOUT_MS } from './doctor.constants';
 import type { DoctorClients, DoctorContext } from './doctor.types';
 import { readLogTail } from './doctor-log.utils';
-import { collectSecrets, redactSecrets } from './doctor-redact.utils';
+import { redactSecrets } from './doctor-redact.utils';
 
 export interface CreateDoctorContextOptions {
   home?: string;
@@ -113,11 +111,7 @@ export function createDoctorContext(options: CreateDoctorContextOptions): Doctor
     );
   }
   const keys = loadServiceKeys(layout);
-  const knownSecrets = collectSecrets(
-    [...USER_SECRET_ENV_KEYS, ...SERVICE_KEY_ENV_KEYS, ...ISSUED_KEY_ENV_KEYS].map(
-      (key) => env[key],
-    ),
-  );
+  const knownSecrets = collectSecretValues(env);
 
   const runner = createComposeRunner(installation, { requireHardware: false });
   const memos = new Map<string, Promise<unknown>>();

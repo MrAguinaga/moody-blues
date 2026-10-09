@@ -41,7 +41,7 @@ describe('evaluateContainers', () => {
     expect(result.status).toBe('error');
     expect(result.message).toBe('1 of 2 services are healthy');
     expect(result.details).toEqual([line]);
-    expect(result.suggestion).toContain('logs --tail 100 bazarr');
+    expect(result.suggestion).toContain('moody-blues logs bazarr');
   });
 
   it('fails over a starting service when another one has failed', () => {

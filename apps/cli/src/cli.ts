@@ -4,11 +4,13 @@ import pkg from '../package.json' with { type: 'json' };
 import {
   createCheckCommand,
   createDoctorCommand,
+  createLogsCommand,
   createResetCommand,
   createSetupCommand,
   createStartCommand,
   createStatusCommand,
   createStopCommand,
+  createTunnelCommand,
   handleRootAction,
 } from './commands';
 
@@ -32,6 +34,8 @@ export function buildCliProgram(): Command {
   program.addCommand(createStatusCommand(CLI_VERSION));
   program.addCommand(createResetCommand(CLI_VERSION));
   program.addCommand(createDoctorCommand(CLI_VERSION));
+  program.addCommand(createTunnelCommand(CLI_VERSION));
+  program.addCommand(createLogsCommand());
 
   program.action(async () => {
     const globalOpts = program.opts();

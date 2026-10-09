@@ -39,5 +39,5 @@ export function errorText(error: unknown): string {
 }
 
 export function logsSuggestion(service: string): string {
-  return `Inspect the container with "docker compose -p moody-blues logs --tail 100 ${service}".`;
+  return `Inspect the container with "moody-blues logs ${service}".`;
 }

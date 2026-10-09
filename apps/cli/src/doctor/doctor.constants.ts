@@ -41,6 +41,3 @@ export const REAL_DEBRID_USER_URL = 'https://api.real-debrid.com/rest/1.0/user';
 export const REAL_DEBRID_EXPIRY_WARNING_DAYS = 14;
 
 export const ARR_APPS: readonly ArrKind[] = ['sonarr', 'radarr'];
-
-export const MIN_SECRET_LENGTH = 4;
-export const REDACTED = '***';

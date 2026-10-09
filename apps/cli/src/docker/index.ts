@@ -20,6 +20,7 @@ export {
   type ComposeOutput,
   type ComposeRunner,
   type KillOptions,
+  type LogsOptions,
   type PullOptions,
   type RunOptions,
   type ServiceHealth,

@@ -49,7 +49,7 @@ export const reinsertionCheck: DoctorCheck = {
         status: 'warning',
         message: summary,
         details: lastAt ? [`Last re-insertion at ${lastAt}`] : [],
-        suggestion: `Inspect ${ctx.decypharrLogPath}. If downloads are stuck in the queue, run "moody-blues doctor --fix".`,
+        suggestion: `Inspect the Decypharr log with "moody-blues logs decypharr" (file: ${ctx.decypharrLogPath}). If downloads are stuck in the queue, run "moody-blues doctor --fix".`,
       };
     }
     return { status: 'ok', message: summary };

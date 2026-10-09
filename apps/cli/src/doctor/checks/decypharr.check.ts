@@ -221,7 +221,7 @@ export const debridMountCheck: DoctorCheck = {
         details: problems,
         suggestion: dead
           ? `The FUSE mount is dead: release it with "sudo umount -l ${mountDirectory}" and restart Decypharr with "docker compose -p moody-blues restart decypharr".`
-          : 'Check the mount propagation (findmnt -no PROPAGATION), the /dev/fuse permissions and config/decypharr/logs/rclone.log.',
+          : 'Check the mount propagation (findmnt -no PROPAGATION), the /dev/fuse permissions, "moody-blues logs decypharr" and config/decypharr/logs/rclone.log.',
       };
     }
 
