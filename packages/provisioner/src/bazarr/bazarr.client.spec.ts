@@ -216,4 +216,19 @@ describe('libraries', () => {
       status: 500,
     });
   });
+
+  it('lists the subtitle providers with their state and retry', async () => {
+    const { fake, client } = setup({
+      providers: [
+        { name: 'gestdown', status: 'Good', retry: '-' },
+        { name: 'opensubtitlescom', status: 'AuthenticationError', retry: 'in 6 hours' },
+      ],
+    });
+
+    expect(await client.listProviders()).toEqual([
+      { name: 'gestdown', status: 'Good', retry: '-' },
+      { name: 'opensubtitlescom', status: 'AuthenticationError', retry: 'in 6 hours' },
+    ]);
+    expect(fake.writes()).toEqual([]);
+  });
 });

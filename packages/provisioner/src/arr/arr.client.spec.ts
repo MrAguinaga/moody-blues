@@ -175,6 +175,100 @@ describe('createArrClient', () => {
   });
 });
 
+describe('queue', () => {
+  const record = (id: number) => ({
+    id,
+    title: `Release ${id}`,
+    trackedDownloadState: 'importing',
+  });
+
+  it('reads every page of the queue with a page size of 200', async () => {
+    const { fake, client } = setup();
+    const first = Array.from({ length: 200 }, (_, index) => record(index + 1));
+    fake.on(
+      'GET',
+      '/api/v3/queue',
+      { body: { page: 1, pageSize: 200, totalRecords: 203, records: first } },
+      { body: { page: 2, pageSize: 200, totalRecords: 203, records: [201, 202, 203].map(record) } },
+    );
+
+    const records = await client.listQueue();
+
+    expect(records).toHaveLength(203);
+    expect(fake.requests.map((request) => request.query)).toEqual([
+      { page: '1', pageSize: '200' },
+      { page: '2', pageSize: '200' },
+    ]);
+  });
+
+  it('stops after the first page when it holds every record', async () => {
+    const { fake, client } = setup();
+    fake.on('GET', '/api/v3/queue', {
+      body: { page: 1, pageSize: 200, totalRecords: 1, records: [record(7)] },
+    });
+
+    expect(await client.listQueue()).toEqual([record(7)]);
+    expect(fake.count('GET', '/api/v3/queue')).toBe(1);
+  });
+
+  it('stops on an empty page even when the total claims more records', async () => {
+    const { fake, client } = setup();
+    fake.on('GET', '/api/v3/queue', {
+      body: { page: 1, pageSize: 200, totalRecords: 5, records: [] },
+    });
+
+    expect(await client.listQueue()).toEqual([]);
+    expect(fake.count('GET', '/api/v3/queue')).toBe(1);
+  });
+
+  it('removes an item with exactly the requested parameters', async () => {
+    const { fake, client } = setup();
+    fake.on('DELETE', '/api/v3/queue/12', { status: 200, body: {} });
+
+    await client.removeQueueItem(12, { removeFromClient: true, blocklist: true });
+
+    expect(fake.requests).toHaveLength(1);
+    expect(fake.requests[0]).toMatchObject({
+      method: 'DELETE',
+      path: '/api/v3/queue/12',
+      query: { removeFromClient: 'true', blocklist: 'true' },
+    });
+  });
+
+  it('sends skipRedownload only when it is requested', async () => {
+    const { fake, client } = setup();
+    fake.on('DELETE', '/api/v3/queue/3', { status: 200, body: {} });
+
+    await client.removeQueueItem(3, { blocklist: true, skipRedownload: true });
+    await client.removeQueueItem(3);
+
+    expect(fake.requests.map((request) => request.query)).toEqual([
+      { blocklist: 'true', skipRedownload: 'true' },
+      {},
+    ]);
+  });
+
+  it('does not retry a rejected removal', async () => {
+    const { fake, client } = setup();
+    fake.on('DELETE', '/api/v3/queue/12', { status: 404, body: { message: 'NotFound' } });
+
+    await expect(client.removeQueueItem(12, { blocklist: true })).rejects.toMatchObject({
+      status: 404,
+    });
+    expect(fake.count('DELETE')).toBe(1);
+  });
+
+  it('does not retry a server error on the removal either', async () => {
+    const { fake, client } = setup();
+    fake.on('DELETE', '/api/v3/queue/12', { status: 503 });
+
+    await expect(client.removeQueueItem(12, { blocklist: true })).rejects.toMatchObject({
+      status: 503,
+    });
+    expect(fake.count('DELETE')).toBe(1);
+  });
+});
+
 describe('patchSingleton', () => {
   it('puts the complete object when a desired key differs', async () => {
     const { fake, client } = setup();

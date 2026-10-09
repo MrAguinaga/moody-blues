@@ -2,7 +2,12 @@ import { createHash } from 'node:crypto';
 
 import { parse } from 'yaml';
 
-import type { BazarrLanguage, BazarrSettings, LanguageProfile } from '../bazarr/bazarr.types';
+import type {
+  BazarrLanguage,
+  BazarrProviderStatus,
+  BazarrSettings,
+  LanguageProfile,
+} from '../bazarr/bazarr.types';
 import type { FetchLike } from '../http/http.types';
 import { renderBazarrConfig } from '../preseed/bazarr-config.preseed';
 import type { BazarrSeedInput } from '../preseed/preseed.types';
@@ -29,6 +34,7 @@ export interface FakeBazarrOptions {
   unreachable?: readonly ('sonarr' | 'radarr')[];
   taskPolls?: number;
   stuckTasks?: readonly string[];
+  providers?: readonly BazarrProviderStatus[];
 }
 
 export interface FakeBazarrState {
@@ -39,6 +45,7 @@ export interface FakeBazarrState {
   movies: FakeLibraryItem[];
   tasksRun: string[];
   signalrRestarts: number;
+  providers: BazarrProviderStatus[];
 }
 
 export interface FakeBazarr {
@@ -138,6 +145,12 @@ export function createFakeBazarr(options: FakeBazarrOptions): FakeBazarr {
     movies: (options.movies ?? []).map((item) => ({ ...item })),
     tasksRun: [],
     signalrRestarts: 0,
+    providers: (
+      options.providers ?? [
+        { name: 'gestdown', status: 'Good', retry: '-' },
+        { name: 'opensubtitlescom', status: 'Good', retry: '-' },
+      ]
+    ).map((provider) => ({ ...provider })),
   };
   const requests: FakeRequest[] = [];
   let pingFailures = options.pingFailures ?? 0;
@@ -284,6 +297,9 @@ export function createFakeBazarr(options: FakeBazarrOptions): FakeBazarr {
 
     if (method === 'GET' && path === '/api/system/status') {
       return json(200, statusView());
+    }
+    if (method === 'GET' && path === '/api/providers') {
+      return json(200, { data: structuredClone(state.providers) });
     }
     if (path === '/api/system/settings') {
       return method === 'GET' ? json(200, structuredClone(state.settings)) : saveSettings(form);

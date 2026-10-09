@@ -1,4 +1,10 @@
 export { createCheckCommand, executeHeadlessCheck, startInteractiveCheck } from './check.command';
+export {
+  createDoctorCommand,
+  type DoctorSettings,
+  executeDoctor,
+  parseStuckAfter,
+} from './doctor.command';
 export { createResetCommand, executeReset, type ResetSettings } from './reset.command';
 export { handleRootAction, type RootActionOptions, startInteractiveWelcome } from './root.command';
 export { createSetupCommand, executeSetup, type SetupSettings } from './setup.command';

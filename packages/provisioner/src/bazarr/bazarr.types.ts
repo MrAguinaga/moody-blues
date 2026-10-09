@@ -66,3 +66,9 @@ export interface ProfileAssignment {
   id: number;
   profileId: number;
 }
+
+export interface BazarrProviderStatus {
+  name: string;
+  status: string;
+  retry: string;
+}

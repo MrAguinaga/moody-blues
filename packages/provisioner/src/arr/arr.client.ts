@@ -11,6 +11,9 @@ import type {
   HealthResource,
   LanguageResource,
   QualityProfileResource,
+  QueuePage,
+  QueueRecord,
+  QueueRemovalOptions,
   ReleaseProfileResource,
   RootFolderResource,
   SpecificationSchemaResource,
@@ -18,6 +21,7 @@ import type {
 } from './arr.types';
 
 const API_ROOT = '/api/v3';
+const QUEUE_PAGE_SIZE = 200;
 
 export interface ArrClientOptions extends Pick<
   HttpClientOptions,
@@ -66,6 +70,8 @@ export interface ArrClient {
   listReleaseProfiles(): Promise<ReleaseProfileResource[]>;
   createReleaseProfile(resource: ReleaseProfileResource): Promise<ReleaseProfileResource>;
   updateReleaseProfile(resource: ReleaseProfileResource): Promise<ReleaseProfileResource>;
+  listQueue(): Promise<QueueRecord[]>;
+  removeQueueItem(id: number, options?: QueueRemovalOptions): Promise<void>;
 }
 
 export function createArrClient(options: ArrClientOptions): ArrClient {
@@ -120,6 +126,25 @@ export function createArrClient(options: ArrClientOptions): ArrClient {
     createReleaseProfile: (resource) => http.post(`${API_ROOT}/releaseprofile`, resource),
     updateReleaseProfile: (resource) =>
       http.put(`${API_ROOT}/releaseprofile/${resource.id}`, resource),
+    listQueue: async () => {
+      const records: QueueRecord[] = [];
+      for (let page = 1; ; page += 1) {
+        const result = await http.get<QueuePage>(`${API_ROOT}/queue`, {
+          query: { page, pageSize: QUEUE_PAGE_SIZE },
+        });
+        records.push(...result.records);
+        if (result.records.length === 0 || records.length >= result.totalRecords) {
+          return records;
+        }
+      }
+    },
+    removeQueueItem: (id, removal = {}) =>
+      http.delete(`${API_ROOT}/queue/${id}`, {
+        query: Object.fromEntries(
+          Object.entries(removal).filter(([, value]) => value !== undefined),
+        ) as Record<string, boolean>,
+        retry: { attempts: 1 },
+      }),
   };
 }
 

@@ -32,6 +32,50 @@ export interface HealthResource {
   wikiUrl?: string;
 }
 
+export const QUEUE_STATES = [
+  'downloading',
+  'importBlocked',
+  'importPending',
+  'importing',
+  'imported',
+  'failedPending',
+  'failed',
+  'ignored',
+] as const;
+export type QueueState = (typeof QUEUE_STATES)[number];
+
+export interface QueueStatusMessage {
+  title?: string;
+  messages?: string[];
+}
+
+export interface QueueRecord {
+  id: number;
+  title?: string;
+  status?: string;
+  trackedDownloadStatus?: string;
+  trackedDownloadState?: string;
+  statusMessages?: QueueStatusMessage[];
+  errorMessage?: string;
+  added?: string;
+  movieId?: number;
+  seriesId?: number;
+  episodeId?: number;
+}
+
+export interface QueuePage {
+  page: number;
+  pageSize: number;
+  totalRecords: number;
+  records: QueueRecord[];
+}
+
+export interface QueueRemovalOptions {
+  removeFromClient?: boolean;
+  blocklist?: boolean;
+  skipRedownload?: boolean;
+}
+
 export interface RootFolderResource {
   id?: number;
   path: string;

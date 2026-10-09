@@ -6,6 +6,7 @@ import { encodeSettingsForm } from './bazarr.form';
 import type {
   BazarrLanguage,
   BazarrMovie,
+  BazarrProviderStatus,
   BazarrSeries,
   BazarrSettings,
   BazarrStatus,
@@ -54,6 +55,7 @@ export interface BazarrClient {
   waitTask(taskId: string, options?: BazarrTaskOptions): Promise<void>;
   listSeries(): Promise<BazarrSeries[]>;
   listMovies(): Promise<BazarrMovie[]>;
+  listProviders(): Promise<BazarrProviderStatus[]>;
   assignSeriesProfile(assignments: readonly ProfileAssignment[]): Promise<void>;
   assignMovieProfile(assignments: readonly ProfileAssignment[]): Promise<void>;
 }
@@ -180,6 +182,8 @@ export function createBazarrClient(options: BazarrClientOptions): BazarrClient {
     waitTask,
     listSeries: () => listItems<BazarrSeries>('/api/series'),
     listMovies: () => listItems<BazarrMovie>('/api/movies'),
+    listProviders: async () =>
+      (await http.get<DataEnvelope<BazarrProviderStatus[]>>('/api/providers')).data,
     assignSeriesProfile: async (assignments) => {
       await http.post('/api/series', assignmentForm('seriesid', assignments));
     },

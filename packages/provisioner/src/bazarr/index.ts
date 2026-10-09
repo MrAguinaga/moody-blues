@@ -43,6 +43,7 @@ export {
 export type {
   BazarrLanguage,
   BazarrMovie,
+  BazarrProviderStatus,
   BazarrSeries,
   BazarrSettings,
   BazarrStatus,

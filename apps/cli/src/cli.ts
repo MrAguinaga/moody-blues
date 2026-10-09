@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import pkg from '../package.json' with { type: 'json' };
 import {
   createCheckCommand,
+  createDoctorCommand,
   createResetCommand,
   createSetupCommand,
   createStartCommand,
@@ -30,6 +31,7 @@ export function buildCliProgram(): Command {
   program.addCommand(createStopCommand());
   program.addCommand(createStatusCommand(CLI_VERSION));
   program.addCommand(createResetCommand(CLI_VERSION));
+  program.addCommand(createDoctorCommand(CLI_VERSION));
 
   program.action(async () => {
     const globalOpts = program.opts();

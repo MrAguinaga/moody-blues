@@ -1,4 +1,4 @@
-import type { ArrKind } from '../arr/arr.types';
+import type { ArrKind, HealthResource, QueueRecord } from '../arr/arr.types';
 import type { FetchLike } from '../http/http.types';
 import type { ProviderField } from '../http/provider-fields';
 import { type FakeRequest, toFakeRequest } from './fake-fetch';
@@ -14,6 +14,8 @@ export interface FakeServarrOptions {
   pingFailures?: number;
   factoryProfiles?: boolean;
   profilesInUse?: readonly string[];
+  queue?: readonly QueueRecord[];
+  health?: readonly HealthResource[];
 }
 
 export interface FakeServarrState {
@@ -23,6 +25,9 @@ export interface FakeServarrState {
   customFormats: Resource[];
   qualityProfiles: Resource[];
   releaseProfiles: Resource[];
+  queue: QueueRecord[];
+  blocklist: QueueRecord[];
+  health: HealthResource[];
 }
 
 export interface FakeServarr {
@@ -34,6 +39,7 @@ export interface FakeServarr {
   count(method: string, path?: string): number;
   writes(): FakeRequest[];
   canLogin(username: string, password: string): boolean;
+  queueRemovals(): FakeRequest[];
 }
 
 const MASK = '********';
@@ -425,6 +431,17 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
     customFormats: [],
     qualityProfiles: [],
     releaseProfiles: [],
+    queue: (options.queue ?? []).map((record) => structuredClone(record)),
+    blocklist: [],
+    health: structuredClone([
+      ...(options.health ?? [
+        {
+          source: 'DownloadClientCheck',
+          type: 'warning',
+          message: 'No download client is available',
+        },
+      ]),
+    ]),
   };
   const requests: FakeRequest[] = [];
   const user = { name: '', hash: '' };
@@ -652,13 +669,30 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
       });
     }
     if (method === 'GET' && path === '/api/v3/health') {
-      return json(200, [
-        {
-          source: 'DownloadClientCheck',
-          type: 'warning',
-          message: 'No download client is available',
-        },
-      ]);
+      return json(200, state.health);
+    }
+    if (method === 'GET' && path === '/api/v3/queue') {
+      const page = Number(query.page ?? 1);
+      const pageSize = Number(query.pageSize ?? 10);
+      return json(200, {
+        page,
+        pageSize,
+        totalRecords: state.queue.length,
+        records: state.queue.slice((page - 1) * pageSize, page * pageSize),
+      });
+    }
+    const queueMatch = /^\/api\/v3\/queue\/(\d+)$/.exec(path);
+    if (method === 'DELETE' && queueMatch) {
+      const id = Number(queueMatch[1]);
+      const record = state.queue.find((candidate) => candidate.id === id);
+      if (!record) {
+        return json(404, { message: 'NotFound' });
+      }
+      state.queue = state.queue.filter((candidate) => candidate.id !== id);
+      if (query.blocklist === 'true') {
+        state.blocklist.push(record);
+      }
+      return json(200, {});
     }
     if (method === 'GET' && path === '/api/v3/language') {
       return json(200, languages);
@@ -884,6 +918,10 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
           request.method !== 'GET' &&
           request.method !== 'HEAD' &&
           request.path !== '/api/v3/downloadclient/test',
+      ),
+    queueRemovals: () =>
+      requests.filter(
+        (request) => request.method === 'DELETE' && request.path.startsWith('/api/v3/queue/'),
       ),
     canLogin: (username, password) =>
       user.name !== '' &&
