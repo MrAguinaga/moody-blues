@@ -26,9 +26,23 @@ export interface ApiKeyList {
   Items: ApiKeyResource[];
 }
 
+export type PlaybackPolicy = {
+  EnableVideoPlaybackTranscoding: boolean;
+  EnableAudioPlaybackTranscoding: boolean;
+  EnablePlaybackRemuxing: boolean;
+};
+
+export interface UserPolicy extends Partial<PlaybackPolicy> {
+  IsAdministrator?: boolean;
+  AuthenticationProviderId?: string;
+  PasswordResetProviderId?: string;
+  [key: string]: unknown;
+}
+
 export interface UserDto {
   Id: string;
   Name: string;
+  Policy?: UserPolicy;
   [key: string]: unknown;
 }
 
@@ -47,6 +61,9 @@ export interface EncodingOptions {
   EnableSegmentDeletion?: boolean;
   EnableThrottling?: boolean;
   SegmentKeepSeconds?: number;
+  HardwareAccelerationType?: string;
+  VaapiDevice?: string;
+  EnableHardwareEncoding?: boolean;
   [key: string]: unknown;
 }
 

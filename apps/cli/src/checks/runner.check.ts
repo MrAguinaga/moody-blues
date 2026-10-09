@@ -12,6 +12,7 @@ import { dockerCheck } from './docker.check';
 import { dockerGroupCheck } from './docker-group.check';
 import { fuseCheck } from './fuse.check';
 import { portsCheck } from './ports.check';
+import { transcodingCheck } from './transcoding.check';
 
 export const DEFAULT_CHECKS: CheckDefinition[] = [
   dockerCheck,
@@ -19,6 +20,7 @@ export const DEFAULT_CHECKS: CheckDefinition[] = [
   composeCheck,
   portsCheck,
   fuseCheck,
+  transcodingCheck,
   dnsCheck,
   diskSpaceCheck,
 ];

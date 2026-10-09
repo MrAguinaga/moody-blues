@@ -5,6 +5,8 @@ export {
   CONFIG_SCHEMA_VERSION,
   DEPLOY_MODES,
   type DeployMode,
+  HARDWARE_ACCEL_KINDS,
+  type HardwareAccelKind,
   type HostIdentity,
   type LanguageSettings,
   type MoodyBluesConfig,

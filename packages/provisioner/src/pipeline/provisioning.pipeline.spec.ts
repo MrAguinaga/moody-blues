@@ -29,6 +29,7 @@ describe('PROVISIONING_PIPELINE', () => {
       'bazarr-provision',
       'decypharr-verify',
       'seerr-provision',
+      'jellyfin-transcoding',
     ]);
   });
 

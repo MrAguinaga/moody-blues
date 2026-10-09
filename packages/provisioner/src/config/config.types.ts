@@ -4,6 +4,9 @@ export type DeployMode = (typeof DEPLOY_MODES)[number];
 export const TRANSCODING_MODES = ['off', 'cpu', 'hardware'] as const;
 export type TranscodingMode = (typeof TRANSCODING_MODES)[number];
 
+export const HARDWARE_ACCEL_KINDS = ['vaapi', 'nvidia'] as const;
+export type HardwareAccelKind = (typeof HARDWARE_ACCEL_KINDS)[number];
+
 export const CONFIG_SCHEMA_VERSION = 1;
 
 export interface AcmeSettings {

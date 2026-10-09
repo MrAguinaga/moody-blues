@@ -17,6 +17,14 @@ export interface FakeJellyfinUser {
   name: string;
   password: string;
   isAdministrator: boolean;
+  policy: Raw;
+}
+
+export interface FakeJellyfinExtraUser {
+  name: string;
+  password?: string;
+  isAdministrator?: boolean;
+  policy?: Raw;
 }
 
 export interface FakeJellyfinOptions {
@@ -26,6 +34,7 @@ export interface FakeJellyfinOptions {
   adminPassword?: string;
   halfFinishedWizard?: boolean;
   apiKeys?: readonly string[];
+  extraUsers?: readonly FakeJellyfinExtraUser[];
   apiKeyReply?: ApiKeyCreationReply;
   existingPaths?: readonly string[];
   libraries?: readonly VirtualFolder[];
@@ -65,6 +74,11 @@ const NAME_PATTERN = /^(?!\s)[\p{L}\p{Mn}\p{Nd}\p{Pc} \-'._@+]+(?<!\s)$/u;
 const AUTH_FIELDS = ['Client', 'Device', 'DeviceId', 'Version'] as const;
 const STARTUP_PATHS: readonly string[] = ['/Startup/User', '/Startup/Complete'];
 const DEFAULT_EXISTING_PATHS: readonly string[] = ['/data/media/movies', '/data/media/tv'];
+const AUTHENTICATION_PROVIDER =
+  'Jellyfin.Server.Implementations.Users.DefaultAuthenticationProvider';
+const PASSWORD_RESET_PROVIDER =
+  'Jellyfin.Server.Implementations.Users.DefaultPasswordResetProvider';
+const USER_POLICY_PATH = /^\/Users\/([^/]+)\/Policy$/;
 const TYPE_OPTIONS_DEFAULTS = {
   MetadataFetcherOrder: [],
   ImageFetcherOrder: [],
@@ -122,6 +136,43 @@ function defaultEncoding(): EncodingOptions {
   };
 }
 
+function defaultPolicy(isAdministrator: boolean): Raw {
+  return {
+    IsAdministrator: isAdministrator,
+    IsHidden: true,
+    IsDisabled: false,
+    BlockedTags: [],
+    EnableUserPreferenceAccess: true,
+    AccessSchedules: [],
+    BlockUnratedItems: [],
+    EnableRemoteControlOfOtherUsers: isAdministrator,
+    EnableSharedDeviceControl: true,
+    EnableRemoteAccess: true,
+    EnableLiveTvManagement: isAdministrator,
+    EnableLiveTvAccess: true,
+    EnableMediaPlayback: true,
+    EnableAudioPlaybackTranscoding: true,
+    EnableVideoPlaybackTranscoding: true,
+    EnablePlaybackRemuxing: true,
+    ForceRemoteSourceTranscoding: false,
+    EnableContentDeletion: isAdministrator,
+    EnableContentDownloading: true,
+    EnableSyncTranscoding: true,
+    EnableMediaConversion: true,
+    EnableAllDevices: true,
+    EnableAllChannels: true,
+    EnableAllFolders: true,
+    InvalidLoginAttemptCount: 0,
+    LoginAttemptsBeforeLockout: -1,
+    MaxActiveSessions: 0,
+    EnablePublicSharing: true,
+    RemoteClientBitrateLimit: 0,
+    AuthenticationProviderId: AUTHENTICATION_PROVIDER,
+    PasswordResetProviderId: PASSWORD_RESET_PROVIDER,
+    SyncPlayAccess: 'CreateAndJoinGroups',
+  };
+}
+
 function normalizeLibraryOptions(options: Raw): LibraryOptions {
   const typeOptions = ((options.TypeOptions as Raw[] | undefined) ?? []).map((entry) => ({
     ...structuredClone(TYPE_OPTIONS_DEFAULTS),
@@ -155,13 +206,19 @@ export function createFakeJellyfin(options: FakeJellyfinOptions = {}): FakeJelly
     bootstrap: options.bootstrapResponses ?? 0,
   };
 
-  function addUser(name: string, password: string): FakeJellyfinUser {
+  function addUser(
+    name: string,
+    password: string,
+    isAdministrator = true,
+    policy: Raw = {},
+  ): FakeJellyfinUser {
     counters.user += 1;
     const user: FakeJellyfinUser = {
       id: `user-id-${counters.user}`,
       name,
       password,
-      isAdministrator: true,
+      isAdministrator,
+      policy: { ...defaultPolicy(isAdministrator), ...policy },
     };
     state.users.push(user);
     return user;
@@ -181,6 +238,11 @@ export function createFakeJellyfin(options: FakeJellyfinOptions = {}): FakeJelly
   if (wizardCompleted || options.halfFinishedWizard) {
     addUser(options.adminName ?? 'Admin', options.adminPassword ?? 'p@ss word');
     state.firstUserFetched = options.halfFinishedWizard === true;
+  }
+  if (wizardCompleted) {
+    for (const extra of options.extraUsers ?? []) {
+      addUser(extra.name, extra.password ?? '', extra.isAdministrator ?? false, extra.policy);
+    }
   }
   for (const token of options.apiKeys ?? []) {
     issueApiKey('moody-blues', token);
@@ -289,6 +351,25 @@ export function createFakeJellyfin(options: FakeJellyfinOptions = {}): FakeJelly
     return reply(404);
   }
 
+  function updatePolicy(userId: string, policy: Raw): Response {
+    const user = state.users.find((candidate) => candidate.id === userId);
+    if (!user) {
+      return reply(404);
+    }
+    if (!policy.AuthenticationProviderId || !policy.PasswordResetProviderId) {
+      return reply(400, 'Error processing request.');
+    }
+    const otherAdministrators = state.users.some(
+      (candidate) => candidate.id !== userId && candidate.isAdministrator,
+    );
+    if (policy.IsAdministrator !== true && user.isAdministrator && !otherAdministrators) {
+      return reply(400, 'There must be at least one user in the administrator role.');
+    }
+    user.policy = structuredClone(policy);
+    user.isAdministrator = policy.IsAdministrator === true;
+    return reply(204);
+  }
+
   function authenticated(request: FakeRequest, token: string | undefined): Response {
     const { method, path, query } = request;
     const key = `${method} ${path}`;
@@ -312,9 +393,13 @@ export function createFakeJellyfin(options: FakeJellyfinOptions = {}): FakeJelly
         state.users.map((user) => ({
           Id: user.id,
           Name: user.name,
-          Policy: { IsAdministrator: user.isAdministrator },
+          Policy: structuredClone(user.policy),
         })),
       );
+    }
+    const policyUserId = method === 'POST' ? USER_POLICY_PATH.exec(path)?.[1] : undefined;
+    if (policyUserId !== undefined) {
+      return updatePolicy(decodeURIComponent(policyUserId), (request.body ?? {}) as Raw);
     }
     if (key === 'POST /Users/Password') {
       const user = state.users.find((candidate) => candidate.id === query.userId);

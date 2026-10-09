@@ -13,6 +13,7 @@ import {
   runPreflightChecks,
   type SystemReport,
 } from '../checks';
+import { detectContextHardware } from '../docker';
 import type { SetupInput } from './setup.types';
 
 export interface SetupRunOptions {
@@ -38,6 +39,7 @@ export async function runSetup(options: SetupRunOptions): Promise<SetupReport> {
   const checks = await runPreflightChecks(options.onCheckUpdate, DEFAULT_CHECKS, {
     mode: config.mode,
     domain: config.domain,
+    transcoding: config.transcoding,
     home,
   });
   if (checks.hasErrors) {
@@ -54,6 +56,7 @@ export async function runSetup(options: SetupRunOptions): Promise<SetupReport> {
       runtime,
       flags: new Map(),
       cliVersion,
+      hardware: detectContextHardware(config),
     },
     { scope: 'setup', signal, onEvent: options.onPipelineEvent },
   );

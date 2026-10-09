@@ -1,4 +1,4 @@
-import type { DeployMode } from '@moody-blues/provisioner';
+import type { DeployMode, TranscodingMode } from '@moody-blues/provisioner';
 
 export type CheckStatus = 'pending' | 'running' | 'success' | 'warning' | 'error';
 
@@ -25,6 +25,7 @@ export type CheckUpdateCallback = (report: SystemReport, currentCheck: CheckResu
 export interface CheckContext {
   mode?: DeployMode;
   domain?: string;
+  transcoding?: TranscodingMode;
   home?: string;
 }
 

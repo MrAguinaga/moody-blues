@@ -1,7 +1,11 @@
 import { accessSync, constants, statSync } from 'node:fs';
 import { delimiter, join } from 'node:path';
 
-export const RENDER_DEVICE_PATH = '/dev/dri/renderD128';
+import {
+  type HardwareAccelKind,
+  type MoodyBluesConfig,
+  VAAPI_DEVICE_PATH,
+} from '@moody-blues/provisioner';
 
 export type HardwareAccel = { kind: 'vaapi'; renderGid: number } | { kind: 'nvidia' };
 
@@ -14,7 +18,7 @@ export function createHostProbe(env: NodeJS.ProcessEnv = process.env): HardwareP
   return {
     renderDeviceGid: () => {
       try {
-        return statSync(RENDER_DEVICE_PATH).gid;
+        return statSync(VAAPI_DEVICE_PATH).gid;
       } catch {
         return undefined;
       }
@@ -45,4 +49,14 @@ export function detectHardwareAccel(
     return { kind: 'nvidia' };
   }
   return undefined;
+}
+
+export const toHardwareKind = (hardware?: HardwareAccel): HardwareAccelKind | undefined =>
+  hardware?.kind;
+
+export function detectContextHardware(
+  config: Pick<MoodyBluesConfig, 'transcoding'>,
+  probe: HardwareProbe = createHostProbe(),
+): HardwareAccelKind | undefined {
+  return config.transcoding === 'hardware' ? toHardwareKind(detectHardwareAccel(probe)) : undefined;
 }

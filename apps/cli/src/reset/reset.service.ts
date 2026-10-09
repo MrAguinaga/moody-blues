@@ -16,6 +16,7 @@ import {
   type ComposeRunner,
   createComposeRunner,
   createComposeRuntime,
+  detectContextHardware,
   isMountActive,
 } from '../docker';
 import { loadInstallation } from '../installation';
@@ -182,6 +183,7 @@ export async function runReset(options: ResetOptions): Promise<PipelineReport> {
       runtime,
       flags: new Map(),
       cliVersion: options.cliVersion,
+      hardware: detectContextHardware(config),
     },
     { scope: 'reset', signal: options.signal, onEvent: options.onEvent },
   );

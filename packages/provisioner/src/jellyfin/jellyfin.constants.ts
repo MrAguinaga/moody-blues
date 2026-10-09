@@ -27,6 +27,8 @@ export const ENCODING_SAFEGUARDS = {
   SegmentKeepSeconds: 300,
 } as const;
 
+export const VAAPI_DEVICE_PATH = '/dev/dri/renderD128';
+
 export const METADATA_PROVIDER = 'TheMovieDb';
 
 export const LIBRARY_ITEM_TYPES: Readonly<

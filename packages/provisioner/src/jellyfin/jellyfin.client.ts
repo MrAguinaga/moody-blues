@@ -21,6 +21,7 @@ import type {
   ServerConfiguration,
   StartupUser,
   UserDto,
+  UserPolicy,
   VirtualFolder,
 } from './jellyfin.types';
 
@@ -47,7 +48,9 @@ export interface JellyfinClient {
   listApiKeys(): Promise<ApiKeyResource[]>;
   createApiKey(app: string): Promise<void>;
   logout(): Promise<void>;
+  listUsers(): Promise<UserDto[]>;
   findUserByName(name: string): Promise<UserDto | undefined>;
+  updateUserPolicy(userId: string, policy: UserPolicy): Promise<void>;
   setPassword(userId: string, newPassword: string): Promise<void>;
   getServerConfiguration(): Promise<ServerConfiguration>;
   saveServerConfiguration(config: ServerConfiguration): Promise<void>;
@@ -90,6 +93,7 @@ export function createJellyfinClient(options: JellyfinClientOptions): JellyfinCl
     await http.post(path, body, authorized({ ...request, responseType: 'status' }));
   };
 
+  const listUsers = () => http.get<UserDto[]>('/Users', authorized());
   const getPublicInfo = () => http.get<PublicSystemInfo>(PUBLIC_INFO_PATH);
 
   // Jellyfin 12 first answers this path from a bootstrap host with camelCase keys and then
@@ -164,10 +168,11 @@ export function createJellyfinClient(options: JellyfinClientOptions): JellyfinCl
         token = undefined;
       }
     },
-    findUserByName: async (name) => {
-      const users = await http.get<UserDto[]>('/Users', authorized());
-      return users.find((user) => user.Name.toLowerCase() === name.toLowerCase());
-    },
+    listUsers,
+    findUserByName: async (name) =>
+      (await listUsers()).find((user) => user.Name.toLowerCase() === name.toLowerCase()),
+    updateUserPolicy: (userId, policy) =>
+      send(`/Users/${encodeURIComponent(userId)}/Policy`, policy),
     setPassword: (userId, newPassword) =>
       send('/Users/Password', { NewPw: newPassword }, { query: { userId } }),
     getServerConfiguration: () => http.get('/System/Configuration', authorized()),

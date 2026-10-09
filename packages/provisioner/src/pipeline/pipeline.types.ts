@@ -1,4 +1,4 @@
-import type { HostIdentity, MoodyBluesConfig } from '../config';
+import type { HardwareAccelKind, HostIdentity, MoodyBluesConfig } from '../config';
 import type { MbHomeLayout } from '../home';
 import type { UserSecrets } from '../state';
 
@@ -29,6 +29,7 @@ export interface ProvisionContext {
   runtime: ContainerRuntime;
   flags: PipelineFlags;
   cliVersion: string;
+  hardware?: HardwareAccelKind;
   reportProgress?: (message: string) => void;
 }
 

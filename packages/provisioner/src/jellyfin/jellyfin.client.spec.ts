@@ -190,4 +190,60 @@ describe('createJellyfinClient', () => {
       status: 404,
     });
   });
+  describe('user policy', () => {
+    it('lists every user with the complete policy', async () => {
+      const { client } = setup({
+        wizardCompleted: true,
+        extraUsers: [{ name: 'Friend', policy: { EnableVideoPlaybackTranscoding: false } }],
+      });
+      await client.authenticate(CREDENTIALS);
+
+      const users = await client.listUsers();
+
+      expect(users.map((user) => user.Name)).toEqual(['Admin', 'Friend']);
+      expect(users[1]?.Policy).toMatchObject({
+        EnableVideoPlaybackTranscoding: false,
+        AuthenticationProviderId: expect.stringContaining('DefaultAuthenticationProvider'),
+      });
+    });
+
+    it('replaces the policy of the user in the path', async () => {
+      const { fake, client } = setup({ wizardCompleted: true, extraUsers: [{ name: 'Friend' }] });
+      await client.authenticate(CREDENTIALS);
+      const [, friend] = await client.listUsers();
+
+      await client.updateUserPolicy(friend!.Id, {
+        ...friend!.Policy,
+        EnableVideoPlaybackTranscoding: false,
+      });
+
+      const request = fake.requests.at(-1);
+      expect(request).toMatchObject({ method: 'POST', path: `/Users/${friend!.Id}/Policy` });
+      expect(fake.state.users[1]?.policy.EnableVideoPlaybackTranscoding).toBe(false);
+    });
+
+    it('rejects a policy without the provider ids with a 400', async () => {
+      const { client } = setup({ wizardCompleted: true });
+      await client.authenticate(CREDENTIALS);
+      const [admin] = await client.listUsers();
+      const incomplete = { ...admin!.Policy, AuthenticationProviderId: undefined };
+
+      await expect(client.updateUserPolicy(admin!.Id, incomplete)).rejects.toMatchObject({
+        status: 400,
+      });
+    });
+
+    it('refuses to demote the last administrator and answers 404 for an unknown user', async () => {
+      const { client } = setup({ wizardCompleted: true });
+      await client.authenticate(CREDENTIALS);
+      const [admin] = await client.listUsers();
+
+      await expect(
+        client.updateUserPolicy(admin!.Id, { ...admin!.Policy, IsAdministrator: false }),
+      ).rejects.toMatchObject({ status: 400 });
+      await expect(client.updateUserPolicy('missing', admin!.Policy!)).rejects.toMatchObject({
+        status: 404,
+      });
+    });
+  });
 });

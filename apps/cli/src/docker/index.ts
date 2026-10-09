@@ -36,9 +36,10 @@ export {
 } from './health.waiter';
 export {
   createHostProbe,
+  detectContextHardware,
   detectHardwareAccel,
   type HardwareAccel,
   type HardwareProbe,
-  RENDER_DEVICE_PATH,
+  toHardwareKind,
 } from './hwaccel.utils';
 export { isMountActive } from './mount.utils';
