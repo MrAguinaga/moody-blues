@@ -28,6 +28,7 @@ describe('ensureHostTree', () => {
     for (const path of [
       layout.configFor('caddy'),
       join(layout.configFor('caddy'), 'data'),
+      join(layout.configFor('caddy'), 'etc'),
       join(layout.cacheDir, 'jellyfin'),
       layout.debridMountDir,
       join(layout.downloadsDir, 'sonarr'),

@@ -24,7 +24,7 @@ function readIfExists(path: string): string | undefined {
 }
 
 export function caddyfilePath(layout: MbHomeLayout): string {
-  return join(layout.configFor('caddy'), 'Caddyfile');
+  return join(layout.configFor('caddy'), 'etc', 'Caddyfile');
 }
 
 export function writeCaddyfile(

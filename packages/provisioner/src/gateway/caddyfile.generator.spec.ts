@@ -104,7 +104,7 @@ describe('writeCaddyfile', () => {
 
   beforeEach(() => {
     sandbox = mkdtempSync(join(tmpdir(), 'mb-caddy-'));
-    mkdirSync(join(sandbox, 'config', 'caddy'), { recursive: true });
+    mkdirSync(join(sandbox, 'config', 'caddy', 'etc'), { recursive: true });
   });
 
   afterEach(() => {

@@ -17,8 +17,8 @@ services:
       - '443:443/udp'
     volumes:
       - type: bind
-        source: ${MB_HOME:?MB_HOME is required}/config/caddy/Caddyfile
-        target: /etc/caddy/Caddyfile
+        source: ${MB_HOME:?MB_HOME is required}/config/caddy/etc
+        target: /etc/caddy
         read_only: true
         bind:
           create_host_path: false

@@ -18,6 +18,7 @@ export function listTreeDirectories(layout: MbHomeLayout): string[] {
     ...SERVICE_NAMES.map((service) => layout.configFor(service)),
     join(layout.configFor('caddy'), 'data'),
     join(layout.configFor('caddy'), 'config'),
+    join(layout.configFor('caddy'), 'etc'),
     layout.cacheDir,
     join(layout.cacheDir, 'jellyfin'),
     layout.mntDir,
