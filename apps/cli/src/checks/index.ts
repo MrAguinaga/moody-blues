@@ -15,4 +15,4 @@ export { dockerGroupCheck } from './docker-group.check';
 export { fuseCheck } from './fuse.check';
 export { createPortsCheck, portsCheck, type PortsCheckDeps } from './ports.check';
 export { DEFAULT_CHECKS, runPreflightChecks } from './runner.check';
-export { transcodingCheck } from './transcoding.check';
+export { evaluateTranscoding, transcodingCheck } from './transcoding.check';

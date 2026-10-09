@@ -15,3 +15,14 @@ export {
   TRANSCODING_MODES,
   type TranscodingMode,
 } from './config.types';
+export {
+  CONFIG_KEYS,
+  CONFIG_PRECONDITIONS,
+  type ConfigChange,
+  type ConfigChangePlan,
+  type ConfigKey,
+  HARDWARE_CROSSING_DISRUPTION,
+  OFF_MODE_WARNING,
+  planConfigChange,
+  type Precondition,
+} from './config-impact';

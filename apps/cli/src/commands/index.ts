@@ -1,4 +1,5 @@
 export { createCheckCommand, executeHeadlessCheck, startInteractiveCheck } from './check.command';
+export { type ConfigSettings, createConfigCommand, executeConfig } from './config.command';
 export {
   createDoctorCommand,
   type DoctorSettings,
