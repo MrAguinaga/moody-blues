@@ -40,7 +40,7 @@ async function indexerContext(client: ProwlarrClient, existing: IndexerResource[
   return {
     schema: await client.listIndexerSchema(),
     context: {
-      appProfileId: await client.getStandardAppProfileId(),
+      appProfileId: (await client.ensureStandardAppProfile(MIN_SEEDERS)).id,
       flaresolverrTagId: tag.id,
       existing,
     },
@@ -64,14 +64,11 @@ describe('createProwlarrClient', () => {
     const { fake, client } = setup();
 
     await client.getSystemStatus();
-    await client.getStandardAppProfileId();
+    await client.ensureStandardAppProfile(MIN_SEEDERS);
     await client.listIndexers();
 
-    expect(fake.requests.map((request) => request.headers['x-api-key'])).toEqual([
-      API_KEY,
-      API_KEY,
-      API_KEY,
-    ]);
+    expect(fake.requests.length).toBeGreaterThanOrEqual(3);
+    expect(fake.requests.every((request) => request.headers['x-api-key'] === API_KEY)).toBe(true);
   });
 
   it('waits for the ping before verifying the key', async () => {
@@ -167,21 +164,79 @@ describe('ensureFlaresolverrProxy', () => {
     expect(fake.state.indexers[0]?.tags).toEqual([]);
   });
 
-  it('never sends forceSave when creating', async () => {
+  it('does not send forceSave when the server accepts the proxy', async () => {
     const { fake, client } = setup();
 
     await client.ensureFlaresolverrProxy(1);
 
-    expect(fake.requests.find((request) => request.method === 'POST')?.query).toEqual({});
+    const posts = fake.requests.filter((request) => request.method === 'POST');
+    expect(posts).toHaveLength(1);
+    expect(posts[0]?.query).toEqual({});
   });
 
-  it('reports the validation message when FlareSolverr is unreachable', async () => {
+  it('saves the proxy with forceSave when FlareSolverr is unreachable', async () => {
+    const { fake, client } = setup({ flaresolverrReachable: false });
+
+    await expect(client.ensureFlaresolverrProxy(1)).resolves.toBe(true);
+
+    const posts = fake.requests.filter((request) => request.method === 'POST');
+    expect(posts.map((request) => request.query)).toEqual([{}, { forceSave: 'true' }]);
+    expect(fake.state.proxies).toHaveLength(1);
+  });
+
+  it('does not hide errors other than a rejected validation', async () => {
+    const { client } = setup({}, { apiKey: 'wrong-key' });
+
+    await expect(client.ensureFlaresolverrProxy(1)).rejects.toBeInstanceOf(HttpStatusError);
+  });
+});
+
+describe('testFlaresolverrProxy', () => {
+  it('posts the stored proxy to the test endpoint', async () => {
+    const { fake, client } = setup();
+    await client.ensureFlaresolverrProxy(1);
+
+    await expect(client.testFlaresolverrProxy()).resolves.toEqual({ ok: true });
+
+    const test = fake.requests.find((request) => request.path === '/api/v1/indexerproxy/test');
+    expect(test).toMatchObject({ method: 'POST' });
+    expect(test?.body).toMatchObject({ id: 1, name: 'FlareSolverr', tags: [1] });
+  });
+
+  it('reports the reason when the proxy cannot reach FlareSolverr', async () => {
     const { client } = setup({ flaresolverrReachable: false });
+    await client.ensureFlaresolverrProxy(1);
 
-    const error = await client.ensureFlaresolverrProxy(1).catch((caught: unknown) => caught);
+    const result = await client.testFlaresolverrProxy();
 
-    expect(error).toBeInstanceOf(HttpStatusError);
-    expect((error as HttpStatusError).message).toContain('Unable to connect to proxy');
+    expect(result).toMatchObject({ ok: false });
+    expect(JSON.stringify(result)).toContain('Unable to connect to proxy');
+  });
+
+  it('fails when the proxy does not exist', async () => {
+    const { client } = setup();
+
+    await expect(client.testFlaresolverrProxy()).rejects.toThrow('no FlareSolverr indexer proxy');
+  });
+});
+
+describe('ensureStandardAppProfile', () => {
+  it('lowers the minimum seeders of the Standard profile once', async () => {
+    const { fake, client } = setup();
+
+    await expect(client.ensureStandardAppProfile(MIN_SEEDERS)).resolves.toEqual({
+      id: 1,
+      changed: true,
+    });
+    await expect(client.ensureStandardAppProfile(MIN_SEEDERS)).resolves.toEqual({
+      id: 1,
+      changed: false,
+    });
+
+    const puts = fake.requests.filter((request) => request.method === 'PUT');
+    expect(puts).toHaveLength(1);
+    expect(puts[0]).toMatchObject({ path: '/api/v1/appprofile/1' });
+    expect(puts[0]?.body).toMatchObject({ name: 'Standard', minimumSeeders: 0 });
   });
 });
 
@@ -285,9 +340,8 @@ describe('ensureApplication', () => {
 });
 
 describe('ensureIndexer', () => {
-  it('reads the minimum seeders from torrentBaseSettings.appMinimumSeeders', () => {
+  it('leaves the minimum seeders to the Standard profile through torrentBaseSettings.appMinimumSeeders', () => {
     expect(MIN_SEEDERS_FIELD).toBe('torrentBaseSettings.appMinimumSeeders');
-    expect(PROWLARR_INDEXERS.every((entry) => entry.minimumSeeders === MIN_SEEDERS)).toBe(true);
   });
 
   it('creates the indexer from its schema item with the Standard profile and no top-level seeders', async () => {
@@ -306,7 +360,7 @@ describe('ensureIndexer', () => {
       tags: [],
     });
     expect(stored).not.toHaveProperty('minimumSeeders');
-    expect(fieldValue(stored as unknown as IndexerResource, MIN_SEEDERS_FIELD)).toBe(1);
+    expect(fieldValue(stored as unknown as IndexerResource, MIN_SEEDERS_FIELD)).toBeNull();
     expect(fieldValue(stored as unknown as IndexerResource, 'apiurl')).toBe('movies-api.accel.li');
   });
 
@@ -373,7 +427,7 @@ describe('ensureIndexer', () => {
     });
 
     expect(change).toEqual({ result: 'updated', definitionName: '1337x' });
-    const put = fake.requests.find((request) => request.method === 'PUT');
+    const put = fake.requests.find((request) => request.path === '/api/v1/indexer/1');
     expect(put).toMatchObject({ path: '/api/v1/indexer/1', query: { forceSave: 'true' } });
     expect(fake.state.indexers[0]).toMatchObject({
       enable: true,
@@ -381,7 +435,7 @@ describe('ensureIndexer', () => {
     });
     expect(
       fieldValue(fake.state.indexers[0] as unknown as IndexerResource, MIN_SEEDERS_FIELD),
-    ).toBe(1);
+    ).toBeNull();
     expect(fieldValue(fake.state.indexers[0] as unknown as IndexerResource, 'sort')).toBe(2);
   });
 
@@ -462,6 +516,27 @@ describe('forceApplicationSync', () => {
         },
       }),
     ).rejects.toThrow('Condition not met');
+  });
+});
+
+describe('refreshHealth', () => {
+  it('posts the CheckHealth command and polls it until it completes', async () => {
+    const { fake, client } = setup({ commandPolls: 1 });
+
+    await client.refreshHealth({ sleep: noSleep });
+
+    expect(fake.requests.find((request) => request.method === 'POST')?.body).toEqual({
+      name: 'CheckHealth',
+    });
+    expect(fake.count('GET', '/api/v1/command/1')).toBe(2);
+  });
+
+  it('names the health check when it fails', async () => {
+    const { client } = setup({ commandOutcome: 'failed' });
+
+    await expect(client.refreshHealth({ sleep: noSleep })).rejects.toThrow(
+      'Prowlarr health check failed',
+    );
   });
 });
 

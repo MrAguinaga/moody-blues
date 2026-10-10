@@ -19,6 +19,7 @@ import { SETUP_VALUE_ENV_KEYS } from './setup-env.constants';
 
 const LOCAL_DOMAIN = 'localhost';
 const REQUIRED_SECRETS = ['rdApiToken', 'adminUsername', 'adminPassword'] as const;
+const OPTIONAL_SECRETS = ['opensubtitlesUsername', 'opensubtitlesPassword'] as const;
 const CONFIG_ISSUE_KEYS: Record<string, string> = {
   domain: SETUP_VALUE_ENV_KEYS.domain,
   'acme.email': SETUP_VALUE_ENV_KEYS.acmeEmail,
@@ -40,6 +41,14 @@ export function mergeSetupValues(...layers: (SetupValues | undefined)[]): SetupV
     }
   }
   return merged as SetupValues;
+}
+
+function explicitlyCleared(
+  layers: readonly (SetupValues | undefined)[],
+  field: (typeof OPTIONAL_SECRETS)[number],
+): boolean {
+  const defining = layers.find((layer) => layer?.[field] !== undefined);
+  return defining?.[field]?.trim() === '';
 }
 
 function pickEnum<T extends string>(
@@ -117,6 +126,12 @@ export async function resolveSetupInput(
   const { ignoredKeys } = sources;
   const explicit = mergeSetupValues(sources.answers, sources.flags, sources.envFile);
   const values = mergeSetupValues(explicit, sources.previous);
+  const cleared = OPTIONAL_SECRETS.filter((field) =>
+    explicitlyCleared([sources.answers, sources.flags, sources.envFile], field),
+  );
+  for (const field of cleared) {
+    delete values[field];
+  }
   const issues: SetupIssue[] = [];
 
   const mode = pickEnum(values.mode, DEPLOY_MODES, SETUP_VALUE_ENV_KEYS.mode, issues);
@@ -177,6 +192,9 @@ export async function resolveSetupInput(
         }),
         ...(values.opensubtitlesPassword && {
           opensubtitlesPassword: values.opensubtitlesPassword,
+        }),
+        ...(cleared.length > 0 && {
+          clearedSecrets: cleared.map((field) => SETUP_VALUE_ENV_KEYS[field]),
         }),
       },
     },

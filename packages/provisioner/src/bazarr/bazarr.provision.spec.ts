@@ -12,6 +12,7 @@ import { createFakeBazarr, type FakeBazarr, type FakeBazarrOptions } from '../te
 import { createBazarrClient } from './bazarr.client';
 import { buildLanguageProfile } from './bazarr.languages';
 import { provisionBazarr, type ProvisionBazarrOptions } from './bazarr.provision';
+import { BASE_PROVIDERS } from './bazarr.settings';
 import { createBazarrProvisionStep } from './bazarr-provision.step';
 
 const identity = { puid: 1000, pgid: 1000 };
@@ -84,13 +85,18 @@ describe('provisionBazarr', () => {
 
     expect(outcome.status).toBe('changed');
     expect(outcome.detail).toBe(
-      'enabled languages ea, language profile Spanish Latino, subtitle synchronization; ' +
-        'no OpenSubtitles credentials: movies have no subtitle provider',
+      'enabled languages ea, es, language profile Spanish Latino, subtitle synchronization; ' +
+        'no OpenSubtitles credentials: movie subtitles rely on the keyless providers',
     );
     expect(
       server.writes().filter((request) => request.path === '/api/system/settings'),
     ).toHaveLength(1);
-    expect(server.state.languages.filter((l) => l.enabled).map((l) => l.code2)).toEqual(['ea']);
+    expect(
+      server.state.languages
+        .filter((l) => l.enabled)
+        .map((l) => l.code2)
+        .sort(),
+    ).toEqual(['ea', 'es']);
     expect(server.state.profiles).toHaveLength(1);
     expect(server.state.profiles[0]).toMatchObject({ profileId: 1, name: 'Spanish Latino' });
     expect(server.state.settings.general).toMatchObject({
@@ -134,7 +140,7 @@ describe('provisionBazarr', () => {
     const [request] = server.writes();
     const form = new URLSearchParams(request?.body as string);
     expect(request?.headers['content-type']).toBe('application/x-www-form-urlencoded');
-    expect(form.getAll('languages-enabled')).toEqual(['ea']);
+    expect(form.getAll('languages-enabled')).toEqual(['ea', 'es']);
     const profiles = JSON.parse(form.get('languages-profiles') as string) as {
       items: Record<string, unknown>[];
     }[];
@@ -182,29 +188,45 @@ describe('provisionBazarr', () => {
     it('enables opensubtitlescom only with credentials', async () => {
       await run(server, createContext({ secrets: { ...secrets, ...openSubtitles } }));
 
-      expect(providers(server)).toEqual(['gestdown', 'opensubtitlescom']);
+      expect(providers(server)).toEqual([...BASE_PROVIDERS, 'opensubtitlescom']);
       expect(server.state.settings.opensubtitlescom).toMatchObject({
         username: 'os-user',
         password: 'os-secret',
       });
     });
 
+    it('enables the keyless providers that returned Spanish and not subf2m', async () => {
+      await run(server);
+
+      expect(providers(server)).toEqual(
+        expect.arrayContaining([
+          'gestdown',
+          'yifysubtitles',
+          'bsplayer',
+          'subtitulamostv',
+          'tvsubtitles',
+          'subtitlecat',
+        ]),
+      );
+      expect(providers(server)).not.toContain('subf2m');
+    });
+
     it('keeps opensubtitlescom out without credentials', async () => {
       await run(server);
 
-      expect(providers(server)).toEqual(['gestdown']);
+      expect(providers(server)).toEqual(BASE_PROVIDERS);
     });
 
     it('removes opensubtitlescom when the credentials are withdrawn', async () => {
       server = setup({
         seed: { opensubtitles: { username: 'os-user', password: 'os-secret' } },
       });
-      expect(providers(server)).toEqual(['gestdown', 'opensubtitlescom']);
+      expect(providers(server)).toEqual([...BASE_PROVIDERS, 'opensubtitlescom']);
 
       const outcome = await run(server);
 
       expect(outcome.detail).toContain('subtitle providers');
-      expect(providers(server)).toEqual(['gestdown']);
+      expect(providers(server)).toEqual(BASE_PROVIDERS);
     });
 
     it('never enables the discontinued providers and keeps foreign ones', async () => {
@@ -216,13 +238,18 @@ describe('provisionBazarr', () => {
 
       await run(server, createContext({ secrets: { ...secrets, ...openSubtitles } }));
 
-      expect(providers(server)).toEqual(['subdivx', 'podnapisi', 'gestdown', 'opensubtitlescom']);
+      expect(providers(server)).toEqual([
+        'subdivx',
+        'podnapisi',
+        ...BASE_PROVIDERS,
+        'opensubtitlescom',
+      ]);
       server.state.settings.general = {
         ...server.state.settings.general,
         enabled_providers: [],
       };
       await run(server);
-      expect(providers(server)).toEqual(['gestdown']);
+      expect(providers(server)).toEqual(BASE_PROVIDERS);
     });
 
     it('updates changed OpenSubtitles credentials and stays quiet afterwards', async () => {
@@ -281,7 +308,7 @@ describe('provisionBazarr', () => {
           .filter((l) => l.enabled)
           .map((l) => l.code2)
           .sort(),
-      ).toEqual(['ea', 'en']);
+      ).toEqual(['ea', 'en', 'es']);
     });
 
     it('rewrites a profile whose content drifted', async () => {
@@ -292,6 +319,14 @@ describe('provisionBazarr', () => {
 
       expect(outcome.status).toBe('changed');
       expect(server.state.profiles[0]?.cutoff).toBe(1);
+    });
+
+    it('asks for Latin American Spanish first and generic Spanish as the fallback', async () => {
+      await run(server);
+
+      const profile = server.state.profiles[0];
+      expect(profile?.items.map((item) => item.language)).toEqual(['ea', 'es']);
+      expect(profile?.cutoff).toBe(1);
     });
 
     it('builds one item per configured language', async () => {

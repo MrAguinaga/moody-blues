@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 
+import { BASE_PROVIDERS } from '../bazarr/bazarr.settings';
 import { readBazarrApiKey, renderBazarrConfig } from './bazarr-config.preseed';
 import type { BazarrSeedInput } from './preseed.types';
 
@@ -67,17 +68,17 @@ describe('renderBazarrConfig', () => {
     );
   });
 
-  it('enables only gestdown without OpenSubtitles credentials', () => {
+  it('enables only the keyless providers without OpenSubtitles credentials', () => {
     const rendered = render();
 
-    expect(rendered.general.enabled_providers).toEqual(['gestdown']);
+    expect(rendered.general.enabled_providers).toEqual(BASE_PROVIDERS);
     expect(rendered.opensubtitlescom).toBeUndefined();
   });
 
   it('adds opensubtitlescom with its credentials when provided', () => {
     const rendered = render({ opensubtitles: { username: 'os-user', password: 'os-pass' } });
 
-    expect(rendered.general.enabled_providers).toEqual(['gestdown', 'opensubtitlescom']);
+    expect(rendered.general.enabled_providers).toEqual([...BASE_PROVIDERS, 'opensubtitlescom']);
     expect(rendered.opensubtitlescom).toEqual({ username: 'os-user', password: 'os-pass' });
   });
 

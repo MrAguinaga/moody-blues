@@ -17,6 +17,13 @@ export const USER_SECRET_ENV_KEYS = [
   'OPENSUBTITLES_PASSWORD',
 ] as const;
 
+export const OPTIONAL_SECRET_ENV_KEYS = [
+  'OPENSUBTITLES_USERNAME',
+  'OPENSUBTITLES_PASSWORD',
+] as const;
+
+export type OptionalSecretEnvKey = (typeof OPTIONAL_SECRET_ENV_KEYS)[number];
+
 export const SERVICE_KEY_ENV_KEYS = [
   'SONARR_API_KEY',
   'RADARR_API_KEY',

@@ -13,9 +13,13 @@ export interface WaitHealthyOptions extends RuntimeCallOptions {
   onProgress?: (message: string) => void;
 }
 
+export interface WaitHealthyResult {
+  notes: string[];
+}
+
 export interface ContainerRuntime {
   up(options: RuntimeCallOptions): Promise<void>;
-  waitHealthy(options: WaitHealthyOptions): Promise<void>;
+  waitHealthy(options: WaitHealthyOptions): Promise<WaitHealthyResult | undefined>;
   reloadGateway(options: RuntimeCallOptions): Promise<void>;
 }
 

@@ -19,7 +19,7 @@ export const ensureEnvStep: ProvisionStep = {
   scopes: ['setup', 'reset', 'config'],
   run: async ({ config, secrets, layout, identity, dockerCpus }) => {
     const current = readEnv(layout.envFile);
-    const next = {
+    const next: Record<string, string> = {
       ...current,
       ...userSecretsToEnv(secrets),
       ...buildHostEnv(
@@ -30,6 +30,10 @@ export const ensureEnvStep: ProvisionStep = {
       ),
       ...serviceKeysToEnv(ensureServiceKeys(serviceKeysFromEnv(current))),
     };
+    const removed = (secrets.clearedSecrets ?? []).filter((key) => key in next);
+    for (const key of removed) {
+      delete next[key];
+    }
 
     if (serializeEnvFile(current) === serializeEnvFile(next)) {
       return { status: 'unchanged' };
@@ -37,10 +41,15 @@ export const ensureEnvStep: ProvisionStep = {
 
     const touched = Object.keys(next).filter((key) => current[key] !== next[key]);
     writeEnv(layout.envFile, next, { identity });
-    const detail =
+    const parts = [
       touched.length > MAX_LISTED_KEYS
         ? `${touched.length} keys written`
-        : `updated ${touched.sort().join(', ')}`;
+        : touched.length > 0
+          ? `updated ${touched.sort().join(', ')}`
+          : '',
+      removed.length > 0 ? `removed ${[...removed].sort().join(', ')}` : '',
+    ];
+    const detail = parts.filter(Boolean).join('; ');
     return { status: 'changed', detail };
   },
 };

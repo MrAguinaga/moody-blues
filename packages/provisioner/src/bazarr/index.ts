@@ -31,6 +31,7 @@ export {
   type ProvisionBazarrOptions,
 } from './bazarr.provision';
 export {
+  BASE_PROVIDERS,
   type BazarrSettingsInput,
   currentProviders,
   desiredProviders,

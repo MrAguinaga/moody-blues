@@ -1,4 +1,9 @@
-import { isServiceHealthy, type ServiceStatus, type StackStatus } from '../../docker';
+import {
+  isServiceHealthy,
+  OPTIONAL_SERVICES,
+  type ServiceStatus,
+  type StackStatus,
+} from '../../docker';
 import type { DoctorCheck, DoctorOutcome } from '../doctor.types';
 import { errorText } from './check-gate.utils';
 
@@ -30,12 +35,21 @@ export function evaluateContainers(status: StackStatus): DoctorOutcome {
   const failing = status.services.filter(
     (service) => !isServiceHealthy(service) && !isStarting(service),
   );
-  if (failing.length > 0) {
+  const required = failing.filter((service) => !OPTIONAL_SERVICES.includes(service.service));
+  if (required.length > 0) {
     return {
       status: 'error',
       message: summary,
       details: failing.map(describeService),
-      suggestion: `Run "moody-blues start" to bring the stack up; inspect a failing service with "moody-blues logs ${failing[0]?.service}".`,
+      suggestion: `Run "moody-blues start" to bring the stack up; inspect a failing service with "moody-blues logs ${required[0]?.service}".`,
+    };
+  }
+  if (failing.length > 0) {
+    return {
+      status: 'warning',
+      message: summary,
+      details: failing.map(describeService),
+      suggestion: `${failing.map((service) => service.service).join(', ')} is optional; run "moody-blues start" to restart it. Without it only indexers behind Cloudflare fail.`,
     };
   }
 

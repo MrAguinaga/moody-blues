@@ -18,6 +18,7 @@ export interface FakeProwlarrOptions {
   commandPolls?: number;
   commandOutcome?: 'completed' | 'failed';
   health?: readonly Resource[];
+  proxyFailing?: boolean;
   blockedIndexers?: readonly string[];
 }
 
@@ -43,6 +44,11 @@ export interface FakeProwlarr {
 }
 
 const MASK = '********';
+const PROXY_HEALTH: Resource = {
+  source: 'IndexerProxyStatusCheck',
+  type: 'error',
+  message: 'All indexer proxies are unavailable due to failures',
+};
 const DEFAULT_DEFINITIONS: readonly string[] = PROWLARR_INDEXERS.map((spec) => spec.definitionName);
 const DISPLAY_NAMES: Readonly<Record<string, string>> = {
   '1337x': '1337x',
@@ -176,6 +182,8 @@ export function createFakeProwlarr(options: FakeProwlarrOptions): FakeProwlarr {
   const flaresolverrReachable = options.flaresolverrReachable ?? true;
   const commandPolls = options.commandPolls ?? 0;
   const commandOutcome = options.commandOutcome ?? 'completed';
+  let proxyFailing = options.proxyFailing ?? false;
+  let healthSnapshotFailing = proxyFailing;
   let nextId = { tag: 1, proxy: 1, application: 1, indexer: 1, command: 1 };
   const appProfiles = [
     {
@@ -256,7 +264,12 @@ export function createFakeProwlarr(options: FakeProwlarrOptions): FakeProwlarr {
     return clone;
   }
 
-  function validateProxy(body: Resource, existingId: number | undefined, forceSave: boolean) {
+  function validateProxy(
+    body: Resource,
+    existingId: number | undefined,
+    forceSave: boolean,
+    liveTest = false,
+  ) {
     const name = String(body.name ?? '');
     if (state.proxies.some((proxy) => proxy.name === name && proxy.id !== existingId)) {
       return validation('Name', 'Should be unique');
@@ -264,7 +277,7 @@ export function createFakeProwlarr(options: FakeProwlarrOptions): FakeProwlarr {
     if (!fieldValue(body, 'host')) {
       return validation('Host', "'Host' must not be empty.");
     }
-    if (!flaresolverrReachable && !(forceSave && existingId !== undefined)) {
+    if (!flaresolverrReachable && (liveTest || !forceSave)) {
       return validation(
         'Host',
         'Unable to connect to proxy: Name does not resolve (flaresolverr:8191)',
@@ -389,10 +402,25 @@ export function createFakeProwlarr(options: FakeProwlarrOptions): FakeProwlarr {
       });
     }
     if (method === 'GET' && path === '/api/v1/health') {
-      return json(200, options.health ?? []);
+      return json(200, [
+        ...(options.health ?? []),
+        ...(healthSnapshotFailing ? [PROXY_HEALTH] : []),
+      ]);
     }
     if (method === 'GET' && path === '/api/v1/appprofile') {
       return json(200, appProfiles);
+    }
+    const profileMatch = /^\/api\/v1\/appprofile\/(\d+)$/.exec(path);
+    if (method === 'PUT' && profileMatch) {
+      const index = appProfiles.findIndex((profile) => profile.id === Number(profileMatch[1]));
+      if (index < 0) {
+        return json(404);
+      }
+      appProfiles[index] = {
+        ...appProfiles[index],
+        ...structuredClone(body),
+      } as (typeof appProfiles)[number];
+      return json(202, appProfiles[index]);
     }
     if (method === 'GET' && path === '/api/v1/indexerstatus') {
       const blocked = options.blockedIndexers ?? [];
@@ -454,6 +482,14 @@ export function createFakeProwlarr(options: FakeProwlarrOptions): FakeProwlarr {
           fields: [field('host', null), field('port', 0)],
         },
       ]);
+    }
+    if (method === 'POST' && path === '/api/v1/indexerproxy/test') {
+      const failure = validateProxy(body, body.id as number | undefined, true, true);
+      if (failure) {
+        return failure;
+      }
+      proxyFailing = false;
+      return json(200, {});
     }
     if (path === '/api/v1/indexerproxy') {
       if (method === 'GET') {
@@ -600,6 +636,9 @@ export function createFakeProwlarr(options: FakeProwlarrOptions): FakeProwlarr {
       };
       nextId = { ...nextId, command: nextId.command + 1 };
       state.commands.push(command);
+      if (command.name === 'CheckHealth') {
+        healthSnapshotFailing = proxyFailing;
+      }
       return json(201, commandView(command));
     }
     const commandMatch = /^\/api\/v1\/command\/(\d+)$/.exec(path);
@@ -634,7 +673,10 @@ export function createFakeProwlarr(options: FakeProwlarrOptions): FakeProwlarr {
           request.method === method.toUpperCase() && (path === undefined || request.path === path),
       ).length,
     writes: () =>
-      requests.filter((request) => request.method !== 'GET' && request.method !== 'HEAD'),
+      requests.filter(
+        (request) =>
+          request.method !== 'GET' && request.method !== 'HEAD' && !request.path.endsWith('/test'),
+      ),
     canLogin: (username, password) =>
       user.name !== '' &&
       username.toLowerCase() === user.name &&

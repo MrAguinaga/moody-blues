@@ -8,7 +8,7 @@ import { createDefaultConfig, createLayout, writeEnv, writeState } from '@moody-
 
 import type { SetupResolution, SetupSources, SetupValues } from './setup.types';
 import { resolveSetupInput } from './setup-input.resolver';
-import { loadSetupSources } from './setup-sources.loader';
+import { loadSetupSources, parseSetupEnvRecord } from './setup-sources.loader';
 
 const SECRETS: SetupValues = {
   rdApiToken: 'rd-token',
@@ -261,6 +261,74 @@ describe('resolveSetupInput', () => {
     });
   });
 
+  describe('an empty OpenSubtitles value', () => {
+    const previous: SetupValues = {
+      ...SECRETS,
+      opensubtitlesUsername: 'old-user',
+      opensubtitlesPassword: 'old-pass',
+    };
+
+    it('removes the previous credentials when the env file sets them empty', async () => {
+      const input = expectComplete(
+        await resolveSetupInput(
+          sources({
+            envFile: { ...SECRETS, opensubtitlesUsername: '', opensubtitlesPassword: '  ' },
+            previous,
+          }),
+          withStorage,
+        ),
+      );
+
+      expect(input.secrets).toEqual({
+        ...{ rdApiToken: 'rd-token', adminUsername: 'admin', adminPassword: 'hunter2-secret' },
+        clearedSecrets: ['OPENSUBTITLES_USERNAME', 'OPENSUBTITLES_PASSWORD'],
+      });
+    });
+
+    it('clears only the key that is empty', async () => {
+      const input = expectComplete(
+        await resolveSetupInput(
+          sources({ envFile: { ...SECRETS, opensubtitlesUsername: '' }, previous }),
+          withStorage,
+        ),
+      );
+
+      expect(input.secrets).toMatchObject({
+        opensubtitlesPassword: 'old-pass',
+        clearedSecrets: ['OPENSUBTITLES_USERNAME'],
+      });
+      expect(input.secrets.opensubtitlesUsername).toBeUndefined();
+    });
+
+    it('keeps the previous credentials when the keys are absent from the env file', async () => {
+      const input = expectComplete(
+        await resolveSetupInput(sources({ envFile: SECRETS, previous }), withStorage),
+      );
+
+      expect(input.secrets).toMatchObject({
+        opensubtitlesUsername: 'old-user',
+        opensubtitlesPassword: 'old-pass',
+      });
+      expect(input.secrets.clearedSecrets).toBeUndefined();
+    });
+
+    it('lets a value with higher precedence win over an empty one', async () => {
+      const input = expectComplete(
+        await resolveSetupInput(
+          sources({
+            flags: { opensubtitlesUsername: 'flag-user' },
+            envFile: { ...SECRETS, opensubtitlesUsername: '' },
+            previous,
+          }),
+          withStorage,
+        ),
+      );
+
+      expect(input.secrets).toMatchObject({ opensubtitlesUsername: 'flag-user' });
+      expect(input.secrets.clearedSecrets).toBeUndefined();
+    });
+  });
+
   it('lets wizard answers fill the gaps and take precedence over previous values', async () => {
     const input = expectComplete(
       await resolveSetupInput(
@@ -321,6 +389,12 @@ describe('loadSetupSources', () => {
     });
     expect(sources.ignoredKeys).toEqual(['EXTRA', 'SONARR_API_KEY']);
     expect(sources.previousConfig).toBeUndefined();
+  });
+
+  it('keeps a key that is present and empty so the resolver can tell it from an absent one', () => {
+    const { values } = parseSetupEnvRecord({ OPENSUBTITLES_USERNAME: '', RD_API_TOKEN: 't' });
+
+    expect(values).toEqual({ opensubtitlesUsername: '', rdApiToken: 't' });
   });
 
   it('fails with a clear message when the env file is missing or malformed', () => {

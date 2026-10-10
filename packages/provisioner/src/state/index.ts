@@ -4,6 +4,8 @@ export {
   ENV_KEY_ORDER,
   HOST_ENV_KEYS,
   ISSUED_KEY_ENV_KEYS,
+  OPTIONAL_SECRET_ENV_KEYS,
+  type OptionalSecretEnvKey,
   SERVICE_KEY_ENV_KEYS,
   USER_SECRET_ENV_KEYS,
 } from './env-keys.constants';

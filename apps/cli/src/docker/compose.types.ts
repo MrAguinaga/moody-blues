@@ -1,5 +1,7 @@
 export const COMPOSE_PROJECT_NAME = 'moody-blues';
 
+export const OPTIONAL_SERVICES: readonly string[] = ['flaresolverr'];
+
 export type ServiceState = 'running' | 'restarting' | 'exited' | 'created' | 'paused' | 'missing';
 
 export type ServiceHealth = 'healthy' | 'unhealthy' | 'starting' | 'none';
@@ -53,6 +55,7 @@ export interface ComposeRunner {
   listServices(options?: RunOptions): Promise<string[]>;
   pull(options?: PullOptions): Promise<void>;
   kill(options?: KillOptions): Promise<void>;
+  restart(services: string[], options?: RunOptions): Promise<void>;
   exec(service: string, command: string[], options?: RunOptions): Promise<ComposeOutput>;
   reloadGateway(options?: RunOptions): Promise<void>;
   logs(service: string, options: LogsOptions): Promise<void>;

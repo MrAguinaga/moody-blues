@@ -35,6 +35,7 @@ export type {
   IndexerSpec,
   IndexerStatusResource,
   ProwlarrStatus,
+  ProxyTestResult,
   TagResource,
 } from './prowlarr.types';
 export {

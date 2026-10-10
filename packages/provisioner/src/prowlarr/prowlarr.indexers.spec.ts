@@ -27,7 +27,7 @@ describe('PROWLARR_INDEXERS', () => {
     expect(names).toEqual(expect.arrayContaining(['1337x', 'eztv']));
   });
 
-  it('uses the shared minimum seeders', () => {
-    expect(PROWLARR_INDEXERS.every((entry) => entry.minimumSeeders === MIN_SEEDERS)).toBe(true);
+  it('accepts releases without seeders because an uncached one is rejected later by Decypharr', () => {
+    expect(MIN_SEEDERS).toBe(0);
   });
 });

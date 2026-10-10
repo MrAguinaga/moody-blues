@@ -100,7 +100,7 @@ services:
           create_host_path: false
     depends_on:
       flaresolverr:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ['CMD', 'curl', '-fsS', 'http://localhost:9696/ping']
       interval: 30s
@@ -112,6 +112,8 @@ services:
     image: ghcr.io/flaresolverr/flaresolverr:v3.5.2
     init: true
     restart: unless-stopped
+    mem_limit: 1g
+    memswap_limit: 1g
     environment:
       TZ: ${TZ:-UTC}
     logging: *logging

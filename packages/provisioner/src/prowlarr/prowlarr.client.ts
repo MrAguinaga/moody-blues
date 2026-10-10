@@ -19,6 +19,7 @@ import type {
   IndexerSpec,
   IndexerStatusResource,
   ProwlarrStatus,
+  ProxyTestResult,
   TagResource,
 } from './prowlarr.types';
 
@@ -30,6 +31,7 @@ export const FLARESOLVERR_PROXY_NAME = 'FlareSolverr';
 export const STANDARD_APP_PROFILE_NAME = 'Standard';
 export const INDEXER_PRIORITY = 25;
 export const MIN_SEEDERS_FIELD = 'torrentBaseSettings.appMinimumSeeders';
+const INHERIT_PROFILE_SEEDERS = null;
 
 const FLARESOLVERR_REQUEST_TIMEOUT_SECONDS = 60;
 const INDEXER_LIVE_TEST_TIMEOUT_MS = 120_000;
@@ -41,6 +43,7 @@ const FAILED_COMMAND_STATUSES: readonly string[] = ['failed', 'aborted', 'cancel
 
 export const DEFAULT_SYNC_TIMEOUT_MS = 180_000;
 export const DEFAULT_SYNC_INTERVAL_MS = 2_000;
+const HEALTH_CHECK_TIMEOUT_MS = 30_000;
 
 export type ProwlarrReadyOptions = Pick<
   WaitUntilReadyOptions,
@@ -72,7 +75,8 @@ export interface ProwlarrClient {
   ensureTag(label: string): Promise<TagResource>;
   ensureFlaresolverrProxy(tagId: number): Promise<boolean>;
   ensureApplication(kind: ArrKind, urls: ApplicationUrls, apiKey: string): Promise<boolean>;
-  getStandardAppProfileId(): Promise<number>;
+  testFlaresolverrProxy(): Promise<ProxyTestResult>;
+  ensureStandardAppProfile(minimumSeeders: number): Promise<{ id: number; changed: boolean }>;
   listIndexerSchema(): Promise<IndexerResource[]>;
   listIndexers(): Promise<IndexerResource[]>;
   ensureIndexer(
@@ -81,6 +85,7 @@ export interface ProwlarrClient {
     context: IndexerContext,
   ): Promise<IndexerChange>;
   forceApplicationSync(options?: ProwlarrSyncOptions): Promise<void>;
+  refreshHealth(options?: ProwlarrSyncOptions): Promise<void>;
   readStatus(): Promise<ProwlarrStatus>;
 }
 
@@ -159,13 +164,39 @@ export function createProwlarrClient(options: ProwlarrClientOptions): ProwlarrCl
     if (!template) {
       throw new Error(`Prowlarr offers no ${FLARESOLVERR_PROXY_NAME} indexer proxy schema`);
     }
-    await http.post(`${API_ROOT}/indexerproxy`, {
+    const resource = {
       ...applyFieldValues(template, values),
       name: FLARESOLVERR_PROXY_NAME,
       tags: [tagId],
       onHealthIssue: false,
-    });
+    };
+    try {
+      await http.post(`${API_ROOT}/indexerproxy`, resource);
+    } catch (error) {
+      if (!(error instanceof HttpStatusError) || error.status !== 400) {
+        throw error;
+      }
+      // Prowlarr tests the proxy before saving it; FlareSolverr is optional and may be down.
+      await http.post(`${API_ROOT}/indexerproxy`, resource, forceSave);
+    }
     return true;
+  }
+
+  async function testFlaresolverrProxy(): Promise<ProxyTestResult> {
+    const proxies = await http.get<IndexerProxyResource[]>(`${API_ROOT}/indexerproxy`);
+    const existing = proxies.find((proxy) => proxy.name === FLARESOLVERR_PROXY_NAME);
+    if (!existing) {
+      throw new Error(`Prowlarr has no ${FLARESOLVERR_PROXY_NAME} indexer proxy to test`);
+    }
+    try {
+      await http.post(`${API_ROOT}/indexerproxy/test`, existing);
+    } catch (error) {
+      if (error instanceof HttpStatusError && error.status === 400) {
+        return { ok: false, reason: describeRejection(error) };
+      }
+      throw error;
+    }
+    return { ok: true };
   }
 
   async function ensureApplication(
@@ -216,13 +247,19 @@ export function createProwlarrClient(options: ProwlarrClientOptions): ProwlarrCl
     return true;
   }
 
-  async function getStandardAppProfileId(): Promise<number> {
+  async function ensureStandardAppProfile(
+    minimumSeeders: number,
+  ): Promise<{ id: number; changed: boolean }> {
     const profiles = await http.get<AppProfileResource[]>(`${API_ROOT}/appprofile`);
     const standard = profiles.find((profile) => profile.name === STANDARD_APP_PROFILE_NAME);
     if (!standard) {
       throw new Error(`Prowlarr has no "${STANDARD_APP_PROFILE_NAME}" application profile`);
     }
-    return standard.id;
+    if (standard.minimumSeeders === minimumSeeders) {
+      return { id: standard.id, changed: false };
+    }
+    await http.put(`${API_ROOT}/appprofile/${standard.id}`, { ...standard, minimumSeeders });
+    return { id: standard.id, changed: true };
   }
 
   async function ensureIndexer(
@@ -233,7 +270,7 @@ export function createProwlarrClient(options: ProwlarrClientOptions): ProwlarrCl
     const { definitionName } = spec;
     const needsFlaresolverr = schemaItem.fields.some((entry) => entry.name === FLARESOLVERR_FIELD);
     const tags = needsFlaresolverr ? [context.flaresolverrTagId] : [];
-    const seeders = { [MIN_SEEDERS_FIELD]: spec.minimumSeeders };
+    const seeders = { [MIN_SEEDERS_FIELD]: INHERIT_PROFILE_SEEDERS };
     const existing = context.existing.find((indexer) => indexer.definitionName === definitionName);
 
     if (existing) {
@@ -266,12 +303,14 @@ export function createProwlarrClient(options: ProwlarrClientOptions): ProwlarrCl
     return { result: 'created', definitionName };
   }
 
-  async function forceApplicationSync(syncOptions: ProwlarrSyncOptions = {}): Promise<void> {
+  async function runCommand(
+    body: Readonly<Record<string, unknown>>,
+    label: string,
+    syncOptions: ProwlarrSyncOptions,
+    defaults: { timeoutMs: number; intervalMs: number },
+  ): Promise<void> {
     const signal = syncOptions.signal ?? options.signal;
-    const command = await http.post<CommandResource>(`${API_ROOT}/command`, {
-      name: 'ApplicationIndexerSync',
-      forceSync: true,
-    });
+    const command = await http.post<CommandResource>(`${API_ROOT}/command`, body);
     const finished = await pollUntil(
       async () => {
         const current = await http.get<CommandResource>(`${API_ROOT}/command/${command.id}`);
@@ -280,8 +319,8 @@ export function createProwlarrClient(options: ProwlarrClientOptions): ProwlarrCl
           : undefined;
       },
       {
-        timeoutMs: syncOptions.timeoutMs ?? DEFAULT_SYNC_TIMEOUT_MS,
-        intervalMs: syncOptions.intervalMs ?? DEFAULT_SYNC_INTERVAL_MS,
+        timeoutMs: syncOptions.timeoutMs ?? defaults.timeoutMs,
+        intervalMs: syncOptions.intervalMs ?? defaults.intervalMs,
         signal,
         sleep: syncOptions.sleep ?? options.sleep,
         now: syncOptions.now ?? options.now,
@@ -289,10 +328,27 @@ export function createProwlarrClient(options: ProwlarrClientOptions): ProwlarrCl
     );
     if (finished.status !== 'completed') {
       throw new Error(
-        `Prowlarr application sync ${finished.status}${finished.message ? `: ${finished.message}` : ''}`,
+        `Prowlarr ${label} ${finished.status}${finished.message ? `: ${finished.message}` : ''}`,
       );
     }
   }
+
+  const forceApplicationSync = (syncOptions: ProwlarrSyncOptions = {}) =>
+    runCommand(
+      { name: 'ApplicationIndexerSync', forceSync: true },
+      'application sync',
+      syncOptions,
+      {
+        timeoutMs: DEFAULT_SYNC_TIMEOUT_MS,
+        intervalMs: DEFAULT_SYNC_INTERVAL_MS,
+      },
+    );
+
+  const refreshHealth = (syncOptions: ProwlarrSyncOptions = {}) =>
+    runCommand({ name: 'CheckHealth' }, 'health check', syncOptions, {
+      timeoutMs: HEALTH_CHECK_TIMEOUT_MS,
+      intervalMs: DEFAULT_SYNC_INTERVAL_MS,
+    });
 
   async function readStatus(): Promise<ProwlarrStatus> {
     const now = (options.now ?? Date.now)();
@@ -334,12 +390,14 @@ export function createProwlarrClient(options: ProwlarrClientOptions): ProwlarrCl
     ensureAdminUser: (credentials) => ensureServarrAdminUser(http, API_ROOT, credentials),
     ensureTag,
     ensureFlaresolverrProxy,
+    testFlaresolverrProxy,
     ensureApplication,
-    getStandardAppProfileId,
+    ensureStandardAppProfile,
     listIndexerSchema: () => http.get(`${API_ROOT}/indexer/schema`),
     listIndexers: () => http.get(`${API_ROOT}/indexer`),
     ensureIndexer,
     forceApplicationSync,
+    refreshHealth,
     readStatus,
   };
 }

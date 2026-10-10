@@ -44,6 +44,29 @@ describe('evaluateContainers', () => {
     expect(result.suggestion).toContain('moody-blues logs bazarr');
   });
 
+  it('only warns when the optional FlareSolverr is unhealthy', () => {
+    const result = evaluateContainers(
+      stack(runningService('sonarr'), runningService('flaresolverr', { health: 'unhealthy' })),
+    );
+
+    expect(result.status).toBe('warning');
+    expect(result.details).toEqual(['flaresolverr: running (unhealthy)']);
+    expect(result.suggestion).toContain('optional');
+  });
+
+  it('fails when a required service fails together with FlareSolverr', () => {
+    const result = evaluateContainers(
+      stack(
+        runningService('bazarr', { health: 'unhealthy' }),
+        runningService('flaresolverr', { health: 'unhealthy' }),
+      ),
+    );
+
+    expect(result.status).toBe('error');
+    expect(result.details).toHaveLength(2);
+    expect(result.suggestion).toContain('moody-blues logs bazarr');
+  });
+
   it('fails over a starting service when another one has failed', () => {
     const result = evaluateContainers(
       stack(

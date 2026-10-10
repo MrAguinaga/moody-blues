@@ -157,4 +157,136 @@ describe('waitForHealthy', () => {
 
     await expect(waitForHealthy(runner, options)).rejects.toThrow('docker is down');
   });
+
+  describe('with an optional service', () => {
+    const base: Snapshot = { caddy: ['running', 'healthy'], flaresolverr: ['running', 'healthy'] };
+    const broken: Snapshot = { ...base, flaresolverr: ['running', 'unhealthy'] };
+    const optionalOptions = { ...options, optionalServices: ['flaresolverr'] };
+
+    function runnerWithRestart(snapshots: Snapshot[]) {
+      return { ...fakeRunner(snapshots), restart: vi.fn(async () => undefined) };
+    }
+
+    it('restarts an unhealthy optional service once it is confirmed and waits for it', async () => {
+      const runner = runnerWithRestart([
+        broken,
+        broken,
+        { ...base, flaresolverr: ['running', 'starting'] },
+        base,
+      ]);
+      const onNotice = vi.fn();
+
+      const result = waitForHealthy(runner, { ...optionalOptions, onNotice });
+      await vi.advanceTimersByTimeAsync(5000);
+
+      await expect(result).resolves.toMatchObject({ allHealthy: true });
+      expect(runner.restart).toHaveBeenCalledExactlyOnceWith(['flaresolverr'], {
+        signal: undefined,
+      });
+      expect(onNotice).toHaveBeenCalledExactlyOnceWith(
+        'Restarted flaresolverr because it was unhealthy',
+      );
+    });
+
+    it('does not restart an optional service that recovers by itself', async () => {
+      const runner = runnerWithRestart([broken, base]);
+
+      const result = waitForHealthy(runner, optionalOptions);
+      await vi.advanceTimersByTimeAsync(2000);
+
+      await expect(result).resolves.toMatchObject({ allHealthy: true });
+      expect(runner.restart).not.toHaveBeenCalled();
+    });
+
+    it('settles without failing when the optional service stays unhealthy after the restart', async () => {
+      const runner = runnerWithRestart([broken]);
+      const onNotice = vi.fn();
+
+      const result = waitForHealthy(runner, { ...optionalOptions, onNotice });
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      await expect(result).resolves.toMatchObject({ allHealthy: false });
+      expect(runner.restart).toHaveBeenCalledTimes(1);
+      expect(onNotice).toHaveBeenLastCalledWith(
+        'flaresolverr is still unhealthy; continuing without it',
+      );
+    });
+
+    it('restarts an optional service that exited', async () => {
+      const exited: Snapshot = { ...base, flaresolverr: ['exited', 'none'] };
+      const runner = runnerWithRestart([exited, exited, base]);
+      const onNotice = vi.fn();
+
+      const result = waitForHealthy(runner, { ...optionalOptions, onNotice });
+      await vi.advanceTimersByTimeAsync(3000);
+
+      await expect(result).resolves.toMatchObject({ allHealthy: true });
+      expect(onNotice).toHaveBeenCalledWith('Restarted flaresolverr because it was stopped');
+    });
+
+    it('stops waiting for an optional service that never settles once the grace period ends', async () => {
+      const starting: Snapshot = { ...base, flaresolverr: ['running', 'starting'] };
+      const runner = runnerWithRestart([starting]);
+      const onNotice = vi.fn();
+
+      const result = waitForHealthy(runner, {
+        ...optionalOptions,
+        optionalGraceMs: 5000,
+        onNotice,
+      });
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      await expect(result).resolves.toMatchObject({ allHealthy: false });
+      expect(runner.restart).not.toHaveBeenCalled();
+      expect(onNotice).toHaveBeenCalledWith('flaresolverr not healthy yet; continuing without it');
+    });
+
+    it('abandons the optional service when the restart itself fails', async () => {
+      const runner = {
+        ...fakeRunner([broken]),
+        restart: vi.fn().mockRejectedValue(new Error('docker restart failed')),
+      };
+      const onNotice = vi.fn();
+
+      const result = waitForHealthy(runner, { ...optionalOptions, onNotice });
+      await vi.advanceTimersByTimeAsync(5000);
+
+      await expect(result).resolves.toMatchObject({ allHealthy: false });
+      expect(onNotice).toHaveBeenCalledWith(
+        'Could not restart flaresolverr: docker restart failed',
+      );
+    });
+
+    it('abandons the optional service without a restart function', async () => {
+      const runner = fakeRunner([broken]);
+
+      const result = waitForHealthy(runner, optionalOptions);
+      await vi.advanceTimersByTimeAsync(5000);
+
+      await expect(result).resolves.toMatchObject({ allHealthy: false });
+    });
+
+    it('still fails when a required service is unhealthy', async () => {
+      const runner = runnerWithRestart([{ ...base, caddy: ['running', 'unhealthy'] }]);
+
+      const result = waitForHealthy(runner, optionalOptions);
+      const assertion = expect(result).rejects.toMatchObject({
+        reason: 'unhealthy',
+        failedServices: ['caddy'],
+      });
+      await vi.advanceTimersByTimeAsync(1000);
+
+      await assertion;
+    });
+
+    it('does not time out because of the optional service once the required ones are healthy', async () => {
+      const starting: Snapshot = { ...base, flaresolverr: ['running', 'starting'] };
+      const runner = runnerWithRestart([starting]);
+
+      const result = waitForHealthy(runner, { ...optionalOptions, timeoutMs: 3000 });
+      await vi.advanceTimersByTimeAsync(5000);
+
+      await expect(result).resolves.toMatchObject({ allHealthy: false });
+    });
+  });
 });

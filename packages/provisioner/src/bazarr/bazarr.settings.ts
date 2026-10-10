@@ -12,7 +12,16 @@ export const DEFAULT_PROFILES_GROUP = 'default profiles';
 export const SUBTITLE_SYNC_GROUP = 'subtitle synchronization';
 export const SERIES_MINIMUM_SCORE = 80;
 
-const MANAGED_PROVIDERS: readonly string[] = [GESTDOWN_PROVIDER, OPENSUBTITLES_PROVIDER];
+export const BASE_PROVIDERS: readonly string[] = [
+  GESTDOWN_PROVIDER,
+  'yifysubtitles',
+  'bsplayer',
+  'subtitulamostv',
+  'tvsubtitles',
+  'subtitlecat',
+];
+
+const MANAGED_PROVIDERS: readonly string[] = [...BASE_PROVIDERS, OPENSUBTITLES_PROVIDER];
 
 export interface DesiredSetting {
   section: string;
@@ -57,7 +66,7 @@ export function desiredProviders(current: readonly string[], withOpenSubtitles: 
   return [
     ...new Set([
       ...kept,
-      GESTDOWN_PROVIDER,
+      ...BASE_PROVIDERS,
       ...(withOpenSubtitles ? [OPENSUBTITLES_PROVIDER] : []),
     ]),
   ];

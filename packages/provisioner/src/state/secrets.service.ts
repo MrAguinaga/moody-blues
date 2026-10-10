@@ -1,7 +1,11 @@
 import { randomBytes } from 'node:crypto';
 
 import type { Result } from '../result.types';
-import { SERVICE_KEY_ENV_KEYS, USER_SECRET_ENV_KEYS } from './env-keys.constants';
+import {
+  type OptionalSecretEnvKey,
+  SERVICE_KEY_ENV_KEYS,
+  USER_SECRET_ENV_KEYS,
+} from './env-keys.constants';
 
 export interface UserSecrets {
   rdApiToken: string;
@@ -9,6 +13,7 @@ export interface UserSecrets {
   adminPassword: string;
   opensubtitlesUsername?: string;
   opensubtitlesPassword?: string;
+  clearedSecrets?: readonly OptionalSecretEnvKey[];
 }
 
 export interface ServiceKeys {

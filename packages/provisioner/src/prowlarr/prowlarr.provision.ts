@@ -11,7 +11,7 @@ import {
   type ProwlarrReadyOptions,
   type ProwlarrSyncOptions,
 } from './prowlarr.client';
-import { PROWLARR_INDEXERS } from './prowlarr.indexers';
+import { MIN_SEEDERS, PROWLARR_INDEXERS } from './prowlarr.indexers';
 import type { IndexerResource, IndexerSpec } from './prowlarr.types';
 
 export const DEFINITIONS_TIMEOUT_MS = 90_000;
@@ -41,6 +41,7 @@ export interface ProvisionProwlarrOptions {
 }
 
 const MAX_REASON_LENGTH = 80;
+const PROXY_HEALTH_SOURCE = 'IndexerProxyStatusCheck';
 const DEFINITION_UNAVAILABLE_REASON = 'definition not available';
 
 function missingDefinitions(
@@ -49,6 +50,10 @@ function missingDefinitions(
 ): string[] {
   const available = new Set(schema.map((item) => item.definitionName));
   return specs.map((spec) => spec.definitionName).filter((name) => !available.has(name));
+}
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function definitionsLoaded(schema: readonly IndexerResource[]): boolean {
@@ -138,6 +143,10 @@ export async function provisionProwlarr(
   if (await client.ensureFlaresolverrProxy(tag.id)) {
     changes.push('FlareSolverr proxy');
   }
+  const proxyTest = await client.testFlaresolverrProxy();
+  if (!proxyTest.ok) {
+    notes.push(`FlareSolverr proxy test failed: ${summarizeReason(proxyTest.reason)}`);
+  }
 
   for (const kind of APPLICATION_KINDS) {
     progress(`Linking ${APPLICATION_LABELS[kind]}`);
@@ -157,7 +166,12 @@ export async function provisionProwlarr(
 
   progress('Waiting for indexer definitions');
   const schema = await awaitDefinitions(client, specs, signal, options.definitions);
-  const appProfileId = await client.getStandardAppProfileId();
+  const appProfile = await client.ensureStandardAppProfile(MIN_SEEDERS);
+  if (appProfile.changed) {
+    changes.push('Standard profile minimum seeders');
+    needsSync = true;
+  }
+  const appProfileId = appProfile.id;
   const existing = await client.listIndexers();
 
   const created: string[] = [];
@@ -198,7 +212,15 @@ export async function provisionProwlarr(
   }
 
   progress('Verifying status');
-  const status = await client.readStatus();
+  let status = await client.readStatus();
+  if (proxyTest.ok && status.health.some((issue) => issue.source === PROXY_HEALTH_SOURCE)) {
+    try {
+      await client.refreshHealth(options.sync);
+      status = await client.readStatus();
+    } catch (error) {
+      notes.push(`health check refresh failed: ${summarizeReason(errorText(error))}`);
+    }
+  }
   const linked = new Set(status.applications.map((application) => application.name));
   const unlinked = APPLICATION_KINDS.map((kind) => APPLICATION_LABELS[kind]).filter(
     (name) => !linked.has(name),

@@ -35,7 +35,7 @@ export function createDefaultConfig(overrides: ConfigOverrides = {}): MoodyBlues
     languages: {
       ui: 'es-MX',
       audioPriority: ['es-419+original', 'es-419', 'original', 'es-ES'],
-      subtitles: ['es-419'],
+      subtitles: ['es-419', 'es-ES'],
       ...languages,
     },
     host: { puid: identity.puid, pgid: identity.pgid, ...host },

@@ -225,4 +225,25 @@ describe('INFRASTRUCTURE_STEPS', () => {
     expect(report.error).toBe('Start containers failed: docker compose up failed');
     expect(runtime.waitHealthy).not.toHaveBeenCalled();
   });
+
+  it('reports what the runtime did for an optional service in the wait step detail', async () => {
+    vi.mocked(runtime.waitHealthy).mockResolvedValue({
+      notes: ['Restarted flaresolverr because it was unhealthy'],
+    });
+
+    const report = await runPipeline(INFRASTRUCTURE_STEPS, createContext(), { scope: 'setup' });
+
+    expect(report.success).toBe(true);
+    expect(report.steps.find((step) => step.id === 'wait-healthy')?.detail).toBe(
+      'Restarted flaresolverr because it was unhealthy',
+    );
+  });
+
+  it('keeps the plain wait step detail when nothing needed attention', async () => {
+    const report = await runPipeline(INFRASTRUCTURE_STEPS, createContext(), { scope: 'setup' });
+
+    expect(report.steps.find((step) => step.id === 'wait-healthy')?.detail).toBe(
+      'all services healthy',
+    );
+  });
 });

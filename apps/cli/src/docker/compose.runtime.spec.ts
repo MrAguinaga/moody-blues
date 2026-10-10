@@ -28,6 +28,7 @@ function fakeRunner(overrides: Partial<ComposeRunner> = {}): ComposeRunner {
     listServices: vi.fn(async () => ['caddy']),
     pull: vi.fn(async () => undefined),
     kill: vi.fn(async () => undefined),
+    restart: vi.fn(async () => undefined),
     exec: vi.fn(async () => ({ stdout: '', stderr: '' })),
     reloadGateway: vi.fn(async () => undefined),
     logs: vi.fn(async () => undefined),
@@ -74,6 +75,32 @@ describe('createComposeRuntime', () => {
       '1 of 2 services healthy, waiting for sonarr',
       '2 of 2 services healthy',
     ]);
+  });
+
+  it('restarts an unhealthy optional service and returns what it did as notes', async () => {
+    const unhealthy: Snapshot = {
+      caddy: ['running', 'healthy'],
+      flaresolverr: ['running', 'unhealthy'],
+    };
+    const healthy: Snapshot = {
+      caddy: ['running', 'healthy'],
+      flaresolverr: ['running', 'healthy'],
+    };
+    const snapshots = [unhealthy, unhealthy, healthy];
+    let polls = 0;
+    const runner = fakeRunner({
+      ps: vi.fn(async () => stack(snapshots[Math.min(polls++, snapshots.length - 1)]!)),
+    });
+    const runtime = createComposeRuntime({
+      home: '/opt/mb',
+      createRunner: () => runner,
+      pollIntervalMs: 1,
+    });
+
+    const result = await runtime.waitHealthy({ signal: new AbortController().signal });
+
+    expect(runner.restart).toHaveBeenCalledExactlyOnceWith(['flaresolverr'], expect.anything());
+    expect(result).toEqual({ notes: ['Restarted flaresolverr because it was unhealthy'] });
   });
 
   it('fails the health wait when a service never becomes healthy', async () => {

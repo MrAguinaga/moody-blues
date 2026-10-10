@@ -200,6 +200,9 @@ export function createComposeRunner(
     kill: async ({ services: only = [], unixSignal, ...runOptions }: KillOptions = {}) => {
       await invoke(['kill', ...(unixSignal ? ['-s', unixSignal] : []), ...only], runOptions);
     },
+    restart: async (restarted, runOptions) => {
+      await invoke(['restart', ...restarted], runOptions);
+    },
     exec: (service, command, runOptions) => invoke(['exec', '-T', service, ...command], runOptions),
     logs: (service, { follow, tail, since, timestamps, ...streamOptions }) =>
       stream(

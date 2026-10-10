@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
-import { desiredProviders, desiredSettings, findDrift } from './bazarr.settings';
+import { BASE_PROVIDERS, desiredProviders, desiredSettings, findDrift } from './bazarr.settings';
 import type { BazarrSettings } from './bazarr.types';
 
 const input = {
@@ -17,7 +17,7 @@ function matching(): BazarrSettings {
     general: {
       use_sonarr: true,
       use_radarr: true,
-      enabled_providers: ['gestdown'],
+      enabled_providers: [...BASE_PROVIDERS],
       serie_default_enabled: true,
       serie_default_profile: 1,
       movie_default_enabled: true,
@@ -41,15 +41,20 @@ function matching(): BazarrSettings {
 }
 
 describe('desiredProviders', () => {
-  it('always includes gestdown and adds opensubtitlescom only on request', () => {
-    expect(desiredProviders([], false)).toEqual(['gestdown']);
-    expect(desiredProviders(['gestdown'], true)).toEqual(['gestdown', 'opensubtitlescom']);
+  it('always includes the keyless providers and adds opensubtitlescom only on request', () => {
+    expect(desiredProviders([], false)).toEqual(BASE_PROVIDERS);
+    expect(desiredProviders(['gestdown'], true)).toEqual([...BASE_PROVIDERS, 'opensubtitlescom']);
+  });
+
+  it('leaves subf2m alone: it is neither enabled nor removed', () => {
+    expect(desiredProviders([], false)).not.toContain('subf2m');
+    expect(desiredProviders(['subf2m'], false)).toContain('subf2m');
   });
 
   it('drops opensubtitlescom without credentials and keeps unrelated providers', () => {
     expect(desiredProviders(['embeddedsubtitles', 'opensubtitlescom'], false)).toEqual([
       'embeddedsubtitles',
-      'gestdown',
+      ...BASE_PROVIDERS,
     ]);
   });
 });
@@ -69,13 +74,18 @@ describe('findDrift', () => {
     expect(findDrift(settings, desiredSettings(settings, input))).toEqual([]);
   });
 
-  it('ignores provider order and extra providers but flags a missing gestdown', () => {
+  it('ignores provider order and extra providers but flags a missing base provider', () => {
     const keys = (settings: BazarrSettings) =>
       findDrift(settings, desiredSettings(settings, input)).map((entry) => entry.key);
     const settings = matching();
 
-    settings.general = { ...settings.general, enabled_providers: ['subx', 'gestdown'] };
+    settings.general = {
+      ...settings.general,
+      enabled_providers: ['subx', ...[...BASE_PROVIDERS].reverse()],
+    };
     expect(keys(settings)).not.toContain('enabled_providers');
+    settings.general = { ...settings.general, enabled_providers: ['subx', 'gestdown'] };
+    expect(keys(settings)).toContain('enabled_providers');
     settings.general = { ...settings.general, enabled_providers: ['subx'] };
     expect(keys(settings)).toContain('enabled_providers');
   });

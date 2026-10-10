@@ -68,6 +68,7 @@ export {
   uiLanguageName,
 } from './arr';
 export {
+  BASE_PROVIDERS,
   type BazarrClient,
   type BazarrClientOptions,
   type BazarrLanguage,
@@ -321,6 +322,7 @@ export {
   type StepResultStatus,
   type StepStatus,
   type WaitHealthyOptions,
+  type WaitHealthyResult,
 } from './pipeline';
 export {
   type ArrConfigInput,
@@ -411,6 +413,7 @@ export {
   type ProwlarrStatus,
   type ProwlarrStepOverrides,
   type ProwlarrSyncOptions,
+  type ProxyTestResult,
   STANDARD_APP_PROFILE_NAME,
   type TagResource,
 } from './prowlarr';
@@ -480,6 +483,8 @@ export {
   HOST_ENV_KEYS,
   ISSUED_KEY_ENV_KEYS,
   type IssuedKeyEnvKey,
+  OPTIONAL_SECRET_ENV_KEYS,
+  type OptionalSecretEnvKey,
   type ParsedUserSecrets,
   parseEnvFile,
   parseUserSecrets,

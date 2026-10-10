@@ -5,7 +5,11 @@ export const waitHealthyStep: ProvisionStep = {
   title: 'Wait for healthy services',
   scopes: ['setup', 'reset', 'config', 'update'],
   run: async ({ runtime, reportProgress }, signal) => {
-    await runtime.waitHealthy({ signal, onProgress: reportProgress });
-    return { status: 'changed', detail: 'all services healthy' };
+    const result = await runtime.waitHealthy({ signal, onProgress: reportProgress });
+    const notes = result?.notes ?? [];
+    return {
+      status: 'changed',
+      detail: notes.length > 0 ? notes.join('; ') : 'all services healthy',
+    };
   },
 };

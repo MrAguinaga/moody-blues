@@ -18,7 +18,7 @@ describe('parseConfig', () => {
       acme: { staging: false },
       storage: { downloadUncached: false },
       tiers: [{ id: 'hd', label: '1080p', maxResolution: '1080p' }],
-      languages: { ui: 'es-MX', subtitles: ['es-419'] },
+      languages: { ui: 'es-MX', subtitles: ['es-419', 'es-ES'] },
     });
   });
 

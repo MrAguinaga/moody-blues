@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { parse, stringify } from 'yaml';
 
+import { BASE_PROVIDERS, OPENSUBTITLES_PROVIDER } from '../bazarr/bazarr.settings';
 import { SERVICE_CATALOG } from '../services';
 import type { BazarrSeedInput } from './preseed.types';
 
@@ -23,11 +24,8 @@ export function renderBazarrConfig(input: BazarrSeedInput): string {
   }
 
   const { sonarr, radarr } = SERVICE_CATALOG;
-  const providers = ['gestdown'];
   const { opensubtitles } = input;
-  if (opensubtitles) {
-    providers.push('opensubtitlescom');
-  }
+  const providers = [...BASE_PROVIDERS, ...(opensubtitles ? [OPENSUBTITLES_PROVIDER] : [])];
 
   const config: Record<string, unknown> = {
     general: {
@@ -70,7 +68,7 @@ export function renderBazarrConfig(input: BazarrSeedInput): string {
   };
 
   if (opensubtitles) {
-    config.opensubtitlescom = {
+    config[OPENSUBTITLES_PROVIDER] = {
       username: opensubtitles.username,
       password: opensubtitles.password,
     };

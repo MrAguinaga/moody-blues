@@ -21,6 +21,7 @@ export {
   type ComposeRunner,
   type KillOptions,
   type LogsOptions,
+  OPTIONAL_SERVICES,
   type PullOptions,
   type RunOptions,
   type ServiceHealth,

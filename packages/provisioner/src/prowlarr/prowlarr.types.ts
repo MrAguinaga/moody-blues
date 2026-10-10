@@ -45,6 +45,7 @@ export interface AppProfileResource {
   id: number;
   name: string;
   minimumSeeders: number;
+  [key: string]: unknown;
 }
 
 export interface CommandResource {
@@ -64,7 +65,6 @@ export interface IndexerStatusResource {
 
 export interface IndexerSpec {
   definitionName: string;
-  minimumSeeders: number;
 }
 
 export type ApplicationUrls = {
@@ -81,6 +81,8 @@ export interface IndexerContext {
 export type IndexerChange =
   | { result: 'created' | 'updated' | 'unchanged'; definitionName: string }
   | { result: 'skipped'; definitionName: string; reason: string };
+
+export type ProxyTestResult = { ok: true } | { ok: false; reason: string };
 
 export interface BlockedIndexer {
   indexerId: number;

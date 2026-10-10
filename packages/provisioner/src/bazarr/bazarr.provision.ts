@@ -172,7 +172,7 @@ export async function provisionBazarr(
   }
 
   if (!opensubtitles) {
-    notes.push('no OpenSubtitles credentials: movies have no subtitle provider');
+    notes.push('no OpenSubtitles credentials: movie subtitles rely on the keyless providers');
   }
 
   const detail = [changes.join(', '), ...notes].filter(Boolean).join('; ');

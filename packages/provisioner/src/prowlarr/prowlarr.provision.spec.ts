@@ -73,6 +73,7 @@ describe('provisionProwlarr', () => {
     expect(outcome.status).toBe('changed');
     expect(outcome.detail).toBe(
       'administrator account, FlareSolverr proxy, Sonarr application, Radarr application, ' +
+        'Standard profile minimum seeders, ' +
         `created indexers ${PROWLARR_INDEXERS.map((entry) => entry.definitionName).join(', ')}`,
     );
     expect(server.canLogin('admin', 'p@ss word')).toBe(true);
@@ -290,11 +291,89 @@ describe('provisionProwlarr', () => {
     expect(server.state.indexers).toHaveLength(0);
   });
 
-  it('fails when the FlareSolverr proxy cannot be created', async () => {
+  it('keeps going and reports a note when FlareSolverr is unreachable', async () => {
     server = createFakeProwlarr({ apiKey: API_KEY, flaresolverrReachable: false });
 
-    await expect(run(server)).rejects.toThrow('Unable to connect to proxy');
-    expect(server.state.applications).toHaveLength(0);
+    const outcome = await run(server);
+
+    expect(outcome.status).toBe('changed');
+    expect(outcome.detail).toContain('FlareSolverr proxy test failed: Unable to connect to proxy');
+    expect(server.state.proxies).toHaveLength(1);
+    expect(server.state.applications).toHaveLength(2);
+  });
+
+  it('tests the proxy on every run so that Prowlarr clears a stale failure', async () => {
+    await run(server);
+    await run(server);
+
+    expect(server.count('POST', '/api/v1/indexerproxy/test')).toBe(2);
+  });
+
+  it('refreshes the health checks when the proxy recovers from a recorded failure', async () => {
+    server = createFakeProwlarr({ apiKey: API_KEY, proxyFailing: true });
+
+    const outcome = await run(server);
+
+    expect(server.state.commands.map((command) => command.name)).toEqual([
+      'ApplicationIndexerSync',
+      'CheckHealth',
+    ]);
+    expect(outcome.detail).not.toContain('health:');
+  });
+
+  it('does not refresh the health checks when the proxy test fails', async () => {
+    server = createFakeProwlarr({
+      apiKey: API_KEY,
+      flaresolverrReachable: false,
+      proxyFailing: true,
+    });
+
+    const outcome = await run(server);
+
+    expect(server.state.commands.map((command) => command.name)).toEqual([
+      'ApplicationIndexerSync',
+    ]);
+    expect(outcome.detail).toContain('health: All indexer proxies are unavailable');
+  });
+
+  it('keeps a note instead of failing when the health refresh fails', async () => {
+    server = createFakeProwlarr({ apiKey: API_KEY, proxyFailing: true });
+    const client = createProwlarrClient({
+      baseUrl: server.baseUrl,
+      apiKey: server.apiKey,
+      fetch: server.fetch,
+      sleep: noSleep,
+      random: () => 0.5,
+    });
+    client.refreshHealth = async () => {
+      throw new Error('Prowlarr health check failed');
+    };
+
+    const outcome = await run(server, createContext(), { client });
+
+    expect(outcome.detail).toContain('health check refresh failed: Prowlarr health check failed');
+  });
+
+  it('does not run the health refresh when the proxy is healthy', async () => {
+    await run(server);
+
+    expect(server.state.commands.map((command) => command.name)).toEqual([
+      'ApplicationIndexerSync',
+    ]);
+  });
+
+  it('lowers the minimum seeders of the Standard profile and leaves the indexers to inherit it', async () => {
+    await run(server);
+
+    const puts = server.requests.filter((request) => request.path === '/api/v1/appprofile/1');
+    expect(puts).toHaveLength(1);
+    expect(puts[0]?.body).toMatchObject({ minimumSeeders: 0 });
+    for (const indexer of server.state.indexers) {
+      const field = (indexer.fields as { name: string; value: unknown }[]).find(
+        (entry) => entry.name === 'torrentBaseSettings.appMinimumSeeders',
+      );
+      expect(field?.value).toBeNull();
+    }
   });
 
   it('fails when the application sync command fails', async () => {

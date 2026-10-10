@@ -239,3 +239,20 @@ describe('createComposeRunner logs', () => {
     await expect(done).rejects.toThrow('the docker executable was not found in PATH');
   });
 });
+
+describe('createComposeRunner restart', () => {
+  beforeEach(() => {
+    vi.mocked(spawn).mockReset();
+  });
+
+  it('restarts only the named services', async () => {
+    const process = streamLogs();
+
+    const done = logsRunner().restart(['flaresolverr']);
+    process.emitter.emit('close', 0);
+    await done;
+
+    const args = vi.mocked(spawn).mock.calls.at(-1)?.[1] as string[];
+    expect(args.slice(args.indexOf('restart'))).toEqual(['restart', 'flaresolverr']);
+  });
+});

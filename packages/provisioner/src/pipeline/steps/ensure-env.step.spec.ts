@@ -125,4 +125,56 @@ describe('ensureEnvStep', () => {
     expect(outcome).toEqual({ status: 'changed', detail: 'updated JELLYFIN_CPU_LIMIT' });
     expect(readEnv(layout.envFile).JELLYFIN_CPU_LIMIT).toBe('7');
   });
+
+  describe('cleared optional secrets', () => {
+    const withOpenSubtitles = {
+      opensubtitlesUsername: 'subs',
+      opensubtitlesPassword: 'subs-pass',
+    };
+
+    it('keeps the optional keys when the secrets do not mention them', async () => {
+      ctx.secrets = { ...ctx.secrets, ...withOpenSubtitles };
+      await ensureEnvStep.run(ctx, new AbortController().signal);
+      ctx.secrets = { rdApiToken: 'rd-token', adminUsername: 'Admin', adminPassword: 'p@ss word' };
+
+      const outcome = await ensureEnvStep.run(ctx, new AbortController().signal);
+
+      expect(outcome).toEqual({ status: 'unchanged' });
+      expect(readEnv(layout.envFile)).toMatchObject({
+        OPENSUBTITLES_USERNAME: 'subs',
+        OPENSUBTITLES_PASSWORD: 'subs-pass',
+      });
+    });
+
+    it('removes the keys listed as cleared and reports them by name', async () => {
+      ctx.secrets = { ...ctx.secrets, ...withOpenSubtitles };
+      await ensureEnvStep.run(ctx, new AbortController().signal);
+      ctx.secrets = {
+        rdApiToken: 'rd-token',
+        adminUsername: 'Admin',
+        adminPassword: 'p@ss word',
+        clearedSecrets: ['OPENSUBTITLES_USERNAME', 'OPENSUBTITLES_PASSWORD'],
+      };
+
+      const outcome = await ensureEnvStep.run(ctx, new AbortController().signal);
+
+      expect(outcome).toEqual({
+        status: 'changed',
+        detail: 'removed OPENSUBTITLES_PASSWORD, OPENSUBTITLES_USERNAME',
+      });
+      const env = readEnv(layout.envFile);
+      expect(env).not.toHaveProperty('OPENSUBTITLES_USERNAME');
+      expect(env).not.toHaveProperty('OPENSUBTITLES_PASSWORD');
+      expect(env.RD_API_TOKEN).toBe('rd-token');
+    });
+
+    it('is unchanged when the cleared keys are already absent', async () => {
+      await ensureEnvStep.run(ctx, new AbortController().signal);
+      ctx.secrets = { ...ctx.secrets, clearedSecrets: ['OPENSUBTITLES_USERNAME'] };
+
+      const outcome = await ensureEnvStep.run(ctx, new AbortController().signal);
+
+      expect(outcome).toEqual({ status: 'unchanged' });
+    });
+  });
 });

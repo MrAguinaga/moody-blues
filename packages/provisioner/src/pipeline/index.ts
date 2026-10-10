@@ -20,5 +20,6 @@ export {
   type StepResultStatus,
   type StepStatus,
   type WaitHealthyOptions,
+  type WaitHealthyResult,
 } from './pipeline.types';
 export { PROVISIONING_PIPELINE } from './provisioning.pipeline';

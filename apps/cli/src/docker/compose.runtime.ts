@@ -59,10 +59,15 @@ export function createComposeRuntime(options: ComposeRuntimeOptions): ContainerR
     },
     waitHealthy: async ({ signal, onProgress }) => {
       let lastMessage: string | undefined;
+      const notes: string[] = [];
       await waitForHealthy(getRunner(), {
         timeoutMs: healthTimeoutMs,
         intervalMs: pollIntervalMs,
         signal,
+        onNotice: (message) => {
+          notes.push(message);
+          onProgress?.(message);
+        },
         onUpdate: (status) => {
           const message = describeProgress(status);
           if (message !== lastMessage) {
@@ -71,6 +76,7 @@ export function createComposeRuntime(options: ComposeRuntimeOptions): ContainerR
           }
         },
       });
+      return { notes };
     },
     reloadGateway: ({ signal }) => getRunner().reloadGateway({ signal }),
   };

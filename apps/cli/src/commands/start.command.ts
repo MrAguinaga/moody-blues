@@ -20,6 +20,7 @@ interface StartPresenter {
   starting(): void;
   waiting(onQuit: () => void): void;
   progress(status: StackStatus): void;
+  notice(message: string): void;
   settled(status: StackStatus): void;
   failed(message: string, status?: StackStatus): void;
   interrupted(): void;
@@ -51,6 +52,7 @@ function createInteractivePresenter(version: string, onExit: () => void): StartP
     starting: () => undefined,
     waiting: (onQuit) => update({ busy: 'Waiting for healthchecks...', onQuit }),
     progress: (status) => update({ status }),
+    notice: (message) => update({ busy: message }),
     settled: (status) => finish({ status }),
     failed: (message, status) => finish({ failure: message, status }),
     interrupted: () => finish({ failure: INTERRUPTED_MESSAGE }),
@@ -70,6 +72,7 @@ function createHeadlessPresenter(timeoutSeconds: number): StartPresenter {
     starting: () => console.log('Starting containers...'),
     waiting: () => console.log(`Waiting for healthchecks (timeout ${timeoutSeconds}s)...`),
     progress: printTransition,
+    notice: (message) => console.log(message),
     settled: (status) => formatStatusTable(status).forEach((line) => console.log(line)),
     failed: (message, status) => {
       if (status) {
@@ -87,6 +90,7 @@ function createJsonPresenter(): StartPresenter {
     starting: () => undefined,
     waiting: () => undefined,
     progress: () => undefined,
+    notice: (message) => console.error(message),
     settled: (status) => printJson(status),
     failed: (message, status) => {
       if (status) {
@@ -148,6 +152,7 @@ export async function executeStart(settings: StartSettings): Promise<void> {
       intervalMs: POLL_INTERVAL_MS,
       signal,
       onUpdate: presenter.progress,
+      onNotice: presenter.notice,
     });
     presenter.settled(status);
   } catch (error) {
