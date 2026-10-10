@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createFakeFetch } from '../testing/fake-fetch';
+import { createFakeServarr } from '../testing/fake-servarr';
 import { createArrClient, patchSingleton } from './arr.client';
 
 const API_KEY = 'sonarr-key';
@@ -296,5 +297,134 @@ describe('patchSingleton', () => {
 
     expect(changed).toBe(false);
     expect(fake.count('PUT')).toBe(0);
+  });
+});
+
+describe('title removal', () => {
+  function setupRadarr() {
+    const fake = createFakeFetch();
+    const client = createArrClient({
+      kind: 'radarr',
+      baseUrl: 'http://127.0.0.1:7878',
+      apiKey: 'radarr-key',
+      fetch: fake.fetch,
+      sleep: async () => undefined,
+    });
+    return { fake, client };
+  }
+
+  it('lists the library of its own kind', async () => {
+    const sonarr = setup();
+    const radarr = setupRadarr();
+    sonarr.fake.on('GET', '/api/v3/series', { body: [{ id: 1, title: 'Show', tvdbId: 7 }] });
+    radarr.fake.on('GET', '/api/v3/movie', { body: [{ id: 2, title: 'Movie', tmdbId: 9 }] });
+
+    await expect(sonarr.client.listTitles()).resolves.toEqual([
+      { id: 1, title: 'Show', tvdbId: 7 },
+    ]);
+    await expect(radarr.client.listTitles()).resolves.toEqual([
+      { id: 2, title: 'Movie', tmdbId: 9 },
+    ]);
+  });
+
+  it('reads the history of a series by seriesId and of a movie by movieId', async () => {
+    const sonarr = setup();
+    const radarr = setupRadarr();
+    sonarr.fake.on('GET', '/api/v3/history/series', { body: [{ eventType: 'grabbed' }] });
+    radarr.fake.on('GET', '/api/v3/history/movie', { body: [{ eventType: 'grabbed' }] });
+
+    await sonarr.client.listHistory(4);
+    await radarr.client.listHistory(5);
+
+    expect(sonarr.fake.requests[0]).toMatchObject({
+      method: 'GET',
+      path: '/api/v3/history/series',
+      query: { seriesId: '4' },
+    });
+    expect(radarr.fake.requests[0]).toMatchObject({
+      method: 'GET',
+      path: '/api/v3/history/movie',
+      query: { movieId: '5' },
+    });
+  });
+
+  it('reads every page of the history of a download id', async () => {
+    const { fake, client } = setup();
+    const page = (records: number[], totalRecords: number) => ({
+      body: {
+        page: 1,
+        pageSize: 200,
+        totalRecords,
+        records: records.map((seriesId) => ({ eventType: 'grabbed', seriesId })),
+      },
+    });
+    fake.on('GET', '/api/v3/history', page([1, 2], 3), page([3], 3));
+
+    const records = await client.listHistoryByDownloadId('ABC');
+
+    expect(records.map((record) => record.seriesId)).toEqual([1, 2, 3]);
+    expect(fake.requests.map((request) => request.query)).toEqual([
+      { downloadId: 'ABC', page: '1', pageSize: '200' },
+      { downloadId: 'ABC', page: '2', pageSize: '200' },
+    ]);
+  });
+
+  it('deletes a series with its files and without an exclusion', async () => {
+    const { fake, client } = setup();
+    fake.on('DELETE', '/api/v3/series/4', { body: {} });
+
+    await client.deleteTitle(4);
+
+    expect(fake.requests[0]).toMatchObject({
+      method: 'DELETE',
+      path: '/api/v3/series/4',
+      query: { deleteFiles: 'true', addImportListExclusion: 'false' },
+    });
+  });
+
+  it('deletes a movie with its files and without an exclusion', async () => {
+    const { fake, client } = setupRadarr();
+    fake.on('DELETE', '/api/v3/movie/5', { body: {} });
+
+    await client.deleteTitle(5);
+
+    expect(fake.requests[0]).toMatchObject({
+      method: 'DELETE',
+      path: '/api/v3/movie/5',
+      query: { deleteFiles: 'true', addImportExclusion: 'false' },
+    });
+  });
+
+  it('does not retry a failed deletion and reports a missing title as an error', async () => {
+    const { fake, client } = setup();
+    fake.on('DELETE', '/api/v3/series/4', { status: 500, body: { message: 'disk error' } });
+    fake.on('DELETE', '/api/v3/series/5', { status: 404, body: { message: 'NotFound' } });
+
+    await expect(client.deleteTitle(4)).rejects.toMatchObject({ status: 500 });
+    await expect(client.deleteTitle(5)).rejects.toMatchObject({ status: 404 });
+    expect(fake.count('DELETE')).toBe(2);
+  });
+
+  it('works against the in-memory double, which drops the history with the title', async () => {
+    const double = createFakeServarr({
+      kind: 'radarr',
+      apiKey: 'radarr-key',
+      titles: [{ id: 1, title: 'Movie' }],
+      history: [{ eventType: 'grabbed', movieId: 1, downloadId: 'AA' }],
+    });
+    const client = createArrClient({
+      kind: 'radarr',
+      baseUrl: double.baseUrl,
+      apiKey: 'radarr-key',
+      fetch: double.fetch,
+      sleep: async () => undefined,
+    });
+
+    await expect(client.listHistory(1)).resolves.toHaveLength(1);
+    await client.deleteTitle(1);
+
+    await expect(client.listTitles()).resolves.toEqual([]);
+    await expect(client.listHistoryByDownloadId('AA')).resolves.toEqual([]);
+    expect(double.titleDeletions()).toHaveLength(1);
   });
 });

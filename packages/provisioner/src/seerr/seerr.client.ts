@@ -1,4 +1,5 @@
 import { createHttpClient } from '../http/http.client';
+import { HttpStatusError } from '../http/http.errors';
 import type { BodylessRequestOptions, HttpClient, HttpClientOptions } from '../http/http.types';
 import { waitUntilReady, type WaitUntilReadyOptions } from '../http/ready.http';
 import { JELLYFIN_SERVER_TYPE } from './seerr.constants';
@@ -13,11 +14,15 @@ import type {
   PublicSettings,
   SeerrArrKind,
   SeerrLibrary,
+  SeerrMedia,
+  SeerrMediaPage,
+  SeerrMediaQuery,
   SeerrUser,
 } from './seerr.types';
 
 const API_ROOT = '/api/v1';
 const PUBLIC_SETTINGS_PATH = `${API_ROOT}/settings/public`;
+const MEDIA_PAGE_SIZE = 100;
 
 export type SeerrReadyOptions = Pick<
   WaitUntilReadyOptions,
@@ -49,6 +54,8 @@ export interface SeerrClient {
   createArrInstance(kind: SeerrArrKind, instance: ArrInstance): Promise<ArrInstance>;
   updateArrInstance(kind: SeerrArrKind, id: number, instance: ArrInstance): Promise<ArrInstance>;
   initialize(): Promise<void>;
+  findMedia(query: SeerrMediaQuery): Promise<SeerrMedia | undefined>;
+  deleteMedia(id: number): Promise<boolean>;
 }
 
 export function createSeerrClient(options: SeerrClientOptions): SeerrClient {
@@ -70,6 +77,11 @@ export function createSeerrClient(options: SeerrClientOptions): SeerrClient {
   const send = async (method: 'post' | 'put', path: string, body?: unknown) => {
     await http[method](path, body, authorized({ responseType: 'status' }));
   };
+
+  const matches = (media: SeerrMedia, query: SeerrMediaQuery): boolean =>
+    media.mediaType === query.mediaType &&
+    ((query.tmdbId !== undefined && media.tmdbId === query.tmdbId) ||
+      (query.tvdbId !== undefined && media.tvdbId === query.tvdbId));
 
   return {
     waitReady: (readyOptions = {}) =>
@@ -110,5 +122,32 @@ export function createSeerrClient(options: SeerrClientOptions): SeerrClient {
     updateArrInstance: (kind, id, instance) =>
       http.put(`${API_ROOT}/settings/${kind}/${id}`, instance, authorized()),
     initialize: () => send('post', `${API_ROOT}/settings/initialize`),
+    findMedia: async (query) => {
+      for (let skip = 0; ; skip += MEDIA_PAGE_SIZE) {
+        const page = await http.get<SeerrMediaPage>(
+          `${API_ROOT}/media`,
+          authorized({ query: { take: MEDIA_PAGE_SIZE, skip } }),
+        );
+        const found = page.results.find((media) => matches(media, query));
+        if (found || page.results.length < MEDIA_PAGE_SIZE) {
+          return found;
+        }
+      }
+    },
+    deleteMedia: async (id) => {
+      try {
+        await http.request(
+          'DELETE',
+          `${API_ROOT}/media/${id}`,
+          authorized({ responseType: 'status', retry: { attempts: 1 } }),
+        );
+        return true;
+      } catch (error) {
+        if (error instanceof HttpStatusError && error.status === 404) {
+          return false;
+        }
+        throw error;
+      }
+    },
   };
 }

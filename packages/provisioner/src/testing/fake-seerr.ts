@@ -5,6 +5,7 @@ import type {
   MainSettings,
   SeerrArrKind,
   SeerrLibrary,
+  SeerrMedia,
   SeerrUser,
 } from '../seerr/seerr.types';
 import { type FakeRequest, toFakeRequest } from './fake-fetch';
@@ -34,6 +35,7 @@ export interface FakeSeerrOptions {
   failTest?: boolean;
   failExternalHostname?: boolean;
   failScan?: boolean;
+  media?: readonly SeerrMedia[];
 }
 
 export interface FakeSeerrState {
@@ -47,6 +49,7 @@ export interface FakeSeerrState {
   logins: number;
   scans: number;
   tested: Raw[];
+  media: SeerrMedia[];
 }
 
 export interface FakeSeerr {
@@ -179,6 +182,7 @@ export function createFakeSeerr(options: FakeSeerrOptions = {}): FakeSeerr {
     logins: 0,
     scans: 0,
     tested: [],
+    media: structuredClone([...(options.media ?? [])]),
   };
   if (signedIn) {
     state.user = { id: 1, permissions: ADMIN_PERMISSION };
@@ -362,6 +366,23 @@ export function createFakeSeerr(options: FakeSeerrOptions = {}): FakeSeerr {
       if (path === `/api/v1/settings/${kind}` || path.startsWith(`/api/v1/settings/${kind}/`)) {
         return arrSettings(request, kind);
       }
+    }
+    if (method === 'GET' && path === '/api/v1/media') {
+      const take = Number(request.query.take ?? 20);
+      const skip = Number(request.query.skip ?? 0);
+      return reply(200, {
+        pageInfo: { pages: Math.ceil(state.media.length / take), results: state.media.length },
+        results: structuredClone(state.media.slice(skip, skip + take)),
+      });
+    }
+    const mediaMatch = /^\/api\/v1\/media\/(\d+)$/.exec(path);
+    if (method === 'DELETE' && mediaMatch) {
+      const id = Number(mediaMatch[1]);
+      if (!state.media.some((media) => media.id === id)) {
+        return reply(404, { message: 'Media not found' });
+      }
+      state.media = state.media.filter((media) => media.id !== id);
+      return reply(204);
     }
     if (method === 'POST' && path === '/api/v1/settings/initialize') {
       state.initialized = true;

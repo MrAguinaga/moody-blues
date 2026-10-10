@@ -26,6 +26,8 @@ export {
   type DownloadClientSaveOptions,
   EXCLUDED_RELEASE_TERMS,
   type HealthResource,
+  type HistoryPage,
+  type HistoryRecord,
   type LanguageResource,
   patchSingleton,
   provisionArr,
@@ -49,6 +51,7 @@ export {
   type SpecificationSchemaField,
   type SpecificationSchemaResource,
   type SystemStatusResource,
+  type TitleResource,
   uiLanguageName,
 } from './arr';
 export {
@@ -433,6 +436,10 @@ export {
   type SeerrClient,
   type SeerrClientOptions,
   type SeerrLibrary,
+  type SeerrMedia,
+  type SeerrMediaPage,
+  type SeerrMediaQuery,
+  type SeerrMediaType,
   seerrProvisionStep,
   type SeerrReadyOptions,
   type SeerrStepOverrides,

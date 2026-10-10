@@ -249,3 +249,47 @@ describe('response parsing', () => {
     expect(parseRepairEntries(null)).toEqual([]);
   });
 });
+
+describe('createDecypharrClient deleteTorrent', () => {
+  const HASH = 'c610ad37aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+
+  it('deletes by infohash with the bearer token and reports it was there', async () => {
+    const { server, client } = setup({ torrents: [HASH.toUpperCase()] });
+
+    await expect(client.deleteTorrent(HASH)).resolves.toBe(true);
+
+    expect(server.requests[0]).toMatchObject({
+      method: 'DELETE',
+      path: `/api/browse/torrents/${HASH}`,
+      headers: { authorization: `Bearer ${TOKEN}` },
+    });
+    expect(server.state.torrents).toEqual([]);
+  });
+
+  it('answers false for a torrent Decypharr no longer has', async () => {
+    const { server, client } = setup();
+
+    await expect(client.deleteTorrent(HASH)).resolves.toBe(false);
+    expect(server.count('DELETE')).toBe(1);
+  });
+
+  it('does not retry a server error', async () => {
+    const { server, client } = setup({ deleteStatus: 500 });
+
+    await expect(client.deleteTorrent(HASH)).rejects.toMatchObject({ status: 500 });
+    expect(server.count('DELETE')).toBe(1);
+  });
+
+  it('encodes the infohash as a single path segment', async () => {
+    const routes = createFakeFetch();
+    const client = createDecypharrClient({
+      baseUrl: 'http://127.0.0.1:8282',
+      apiToken: TOKEN,
+      fetch: routes.fetch,
+      sleep: noSleep,
+    });
+    routes.on('DELETE', '/api/browse/torrents/a%2Fb', { status: 200 });
+
+    await expect(client.deleteTorrent('a/b')).resolves.toBe(true);
+  });
+});

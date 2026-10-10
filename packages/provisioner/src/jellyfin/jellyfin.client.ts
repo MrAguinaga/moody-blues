@@ -59,6 +59,7 @@ export interface JellyfinClient {
   listLibraries(): Promise<VirtualFolder[]>;
   createLibrary(spec: LibrarySpec, options: LibraryOptions): Promise<void>;
   updateLibraryOptions(id: string, options: LibraryOptions): Promise<void>;
+  refreshLibrary(): Promise<void>;
 }
 
 const PUBLIC_INFO_PATH = '/System/Info/Public';
@@ -183,5 +184,6 @@ export function createJellyfinClient(options: JellyfinClientOptions): JellyfinCl
     createLibrary,
     updateLibraryOptions: (id, libraryOptions) =>
       send('/Library/VirtualFolders/LibraryOptions', { Id: id, LibraryOptions: libraryOptions }),
+    refreshLibrary: () => send('/Library/Refresh'),
   };
 }

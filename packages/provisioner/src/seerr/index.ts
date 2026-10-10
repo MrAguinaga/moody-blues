@@ -37,6 +37,10 @@ export type {
   PublicSettings,
   SeerrArrKind,
   SeerrLibrary,
+  SeerrMedia,
+  SeerrMediaPage,
+  SeerrMediaQuery,
+  SeerrMediaType,
   SeerrUser,
 } from './seerr.types';
 export {

@@ -76,6 +76,32 @@ export interface QueueRemovalOptions {
   skipRedownload?: boolean;
 }
 
+export interface TitleResource {
+  id: number;
+  title: string;
+  originalTitle?: string;
+  year?: number;
+  path?: string;
+  tmdbId?: number;
+  tvdbId?: number;
+}
+
+export interface HistoryRecord {
+  id?: number;
+  eventType: string;
+  downloadId?: string;
+  sourceTitle?: string;
+  movieId?: number;
+  seriesId?: number;
+}
+
+export interface HistoryPage {
+  page: number;
+  pageSize: number;
+  totalRecords: number;
+  records: HistoryRecord[];
+}
+
 export interface RootFolderResource {
   id?: number;
   path: string;

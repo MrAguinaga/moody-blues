@@ -101,3 +101,24 @@ export interface ArrConnection {
 export interface ArrTestResult {
   [key: string]: unknown;
 }
+
+export type SeerrMediaType = 'movie' | 'tv';
+
+export interface SeerrMedia {
+  id: number;
+  mediaType: SeerrMediaType;
+  tmdbId?: number;
+  tvdbId?: number | null;
+  [key: string]: unknown;
+}
+
+export interface SeerrMediaPage {
+  pageInfo?: { pages?: number; page?: number; results?: number };
+  results: SeerrMedia[];
+}
+
+export interface SeerrMediaQuery {
+  mediaType: SeerrMediaType;
+  tmdbId?: number;
+  tvdbId?: number;
+}

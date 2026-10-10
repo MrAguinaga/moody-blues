@@ -6,6 +6,7 @@ import {
   createConfigCommand,
   createDoctorCommand,
   createLogsCommand,
+  createRemoveCommand,
   createResetCommand,
   createSetupCommand,
   createStartCommand,
@@ -38,6 +39,7 @@ export function buildCliProgram(): Command {
   program.addCommand(createTunnelCommand(CLI_VERSION));
   program.addCommand(createLogsCommand());
   program.addCommand(createConfigCommand(CLI_VERSION));
+  program.addCommand(createRemoveCommand(CLI_VERSION));
 
   program.action(async () => {
     const globalOpts = program.opts();

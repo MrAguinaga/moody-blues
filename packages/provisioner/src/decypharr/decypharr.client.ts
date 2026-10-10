@@ -33,6 +33,7 @@ export interface DecypharrClient {
   propfindWebdav(): Promise<number>;
   listBrokenEntries(): Promise<RepairHealthEntry[]>;
   updateAuth(credentials: DecypharrAdminCredentials): Promise<void>;
+  deleteTorrent(infohash: string): Promise<boolean>;
 }
 
 export interface DecypharrAdminCredentials {
@@ -56,6 +57,7 @@ type Raw = Record<string, unknown>;
 const WEBDAV_PATH = '/webdav/';
 const REPAIR_HEALTH_PATH = '/api/repair/health';
 const UPDATE_AUTH_PATH = '/api/update-auth';
+const BROWSE_TORRENTS_PATH = '/api/browse/torrents';
 const WIZARD_PATTERN = /setup wizard/i;
 const LIST_WRAPPER_KEYS: readonly string[] = ['entries', 'data', 'items', 'health', 'arrs'];
 
@@ -245,6 +247,24 @@ export function createDecypharrClient(options: DecypharrClientOptions): Decyphar
         );
       } catch (error) {
         throw sanitize(error, [password]);
+      }
+    },
+    // Decypharr removes the torrent from the debrid account too, so a retried request could only hide the first failure.
+    deleteTorrent: async (infohash) => {
+      try {
+        await guarded(() =>
+          http.request('DELETE', `${BROWSE_TORRENTS_PATH}/${encodeURIComponent(infohash)}`, {
+            headers: authorization,
+            retry: { attempts: 1 },
+            responseType: 'status',
+          }),
+        );
+        return true;
+      } catch (error) {
+        if (error instanceof HttpStatusError && error.status === 404) {
+          return false;
+        }
+        throw error;
       }
     },
     listBrokenEntries: async () =>

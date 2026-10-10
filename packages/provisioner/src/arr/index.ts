@@ -39,6 +39,8 @@ export {
   type CustomFormatSpecificationResource,
   type DownloadClientResource,
   type HealthResource,
+  type HistoryPage,
+  type HistoryRecord,
   type LanguageResource,
   type QualityProfileFormatItemResource,
   type QualityProfileItemResource,
@@ -56,4 +58,5 @@ export {
   type SpecificationSchemaField,
   type SpecificationSchemaResource,
   type SystemStatusResource,
+  type TitleResource,
 } from './arr.types';

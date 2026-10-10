@@ -9,6 +9,8 @@ import type {
   CustomFormatResource,
   DownloadClientResource,
   HealthResource,
+  HistoryPage,
+  HistoryRecord,
   LanguageResource,
   NotificationResource,
   QualityProfileResource,
@@ -19,10 +21,21 @@ import type {
   RootFolderResource,
   SpecificationSchemaResource,
   SystemStatusResource,
+  TitleResource,
 } from './arr.types';
 
 const API_ROOT = '/api/v3';
 const QUEUE_PAGE_SIZE = 200;
+const HISTORY_PAGE_SIZE = 200;
+
+const TITLE_RESOURCES = {
+  radarr: { collection: 'movie', historyQuery: 'movieId', exclusionQuery: 'addImportExclusion' },
+  sonarr: {
+    collection: 'series',
+    historyQuery: 'seriesId',
+    exclusionQuery: 'addImportListExclusion',
+  },
+} as const;
 
 export interface ArrClientOptions extends Pick<
   HttpClientOptions,
@@ -77,6 +90,10 @@ export interface ArrClient {
   updateReleaseProfile(resource: ReleaseProfileResource): Promise<ReleaseProfileResource>;
   listQueue(): Promise<QueueRecord[]>;
   removeQueueItem(id: number, options?: QueueRemovalOptions): Promise<void>;
+  listTitles(): Promise<TitleResource[]>;
+  listHistory(titleId: number): Promise<HistoryRecord[]>;
+  listHistoryByDownloadId(downloadId: string): Promise<HistoryRecord[]>;
+  deleteTitle(id: number): Promise<void>;
 }
 
 export function createArrClient(options: ArrClientOptions): ArrClient {
@@ -90,6 +107,7 @@ export function createArrClient(options: ArrClientOptions): ArrClient {
     timeoutMs: options.timeoutMs,
     signal: options.signal,
   });
+  const titles = TITLE_RESOURCES[options.kind];
   const saveQuery = (save?: DownloadClientSaveOptions) =>
     save?.forceSave ? { query: { forceSave: true } } : {};
 
@@ -152,6 +170,29 @@ export function createArrClient(options: ArrClientOptions): ArrClient {
         query: Object.fromEntries(
           Object.entries(removal).filter(([, value]) => value !== undefined),
         ) as Record<string, boolean>,
+        retry: { attempts: 1 },
+      }),
+    listTitles: () => http.get(`${API_ROOT}/${titles.collection}`),
+    listHistory: (titleId) =>
+      http.get(`${API_ROOT}/history/${titles.collection}`, {
+        query: { [titles.historyQuery]: titleId },
+      }),
+    listHistoryByDownloadId: async (downloadId) => {
+      const records: HistoryRecord[] = [];
+      for (let page = 1; ; page += 1) {
+        const result = await http.get<HistoryPage>(`${API_ROOT}/history`, {
+          query: { downloadId, page, pageSize: HISTORY_PAGE_SIZE },
+        });
+        records.push(...result.records);
+        if (result.records.length === 0 || records.length >= result.totalRecords) {
+          return records;
+        }
+      }
+    },
+    // The deletion removes the folder, so a retried request could only hide the first failure.
+    deleteTitle: (id) =>
+      http.delete(`${API_ROOT}/${titles.collection}/${id}`, {
+        query: { deleteFiles: true, [titles.exclusionQuery]: false },
         retry: { attempts: 1 },
       }),
   };

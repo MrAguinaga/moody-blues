@@ -176,6 +176,17 @@ describe('createJellyfinClient', () => {
     ).rejects.toThrow(/\/data\/media\/movies exists inside the container/);
   });
 
+  it('requests a library refresh with the token', async () => {
+    const { fake, client } = setup({ wizardCompleted: true });
+    await client.authenticate(CREDENTIALS);
+
+    await client.refreshLibrary();
+
+    expect(fake.state.refreshes).toBe(1);
+    expect(fake.requests.at(-1)).toMatchObject({ method: 'POST', path: '/Library/Refresh' });
+    expect(fake.requests.at(-1)?.headers.authorization).toMatch(/Token=/);
+  });
+
   it('replaces library options by id and answers 404 for an unknown id', async () => {
     const { fake, client } = setup({ wizardCompleted: true });
     await client.authenticate(CREDENTIALS);

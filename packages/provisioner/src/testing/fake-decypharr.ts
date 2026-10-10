@@ -17,6 +17,8 @@ export interface FakeDecypharrOptions {
   repairHealth?: unknown;
   repairHealthStatus?: number;
   pingFailures?: number;
+  torrents?: readonly string[];
+  deleteStatus?: number;
 }
 
 export interface FakeDecypharrState {
@@ -26,6 +28,7 @@ export interface FakeDecypharrState {
   brokenEntries: Raw[];
   arrSource: string;
   admin?: { username: string; password: string };
+  torrents: string[];
 }
 
 export interface FakeDecypharr {
@@ -72,6 +75,7 @@ export function createFakeDecypharr(options: FakeDecypharrOptions): FakeDecyphar
     webdavStatus: options.webdavStatus ?? 207,
     brokenEntries: (options.brokenEntries ?? []).map((entry) => ({ ...entry })),
     arrSource: 'config',
+    torrents: (options.torrents ?? []).map((hash) => hash.toLowerCase()),
   };
   const requests: FakeRequest[] = [];
   let pingFailures = options.pingFailures ?? 0;
@@ -134,6 +138,18 @@ export function createFakeDecypharr(options: FakeDecypharrOptions): FakeDecyphar
       }
       const entries = request.query.status === 'broken' ? state.brokenEntries : [];
       return json(200, options.repairHealth ?? entries);
+    }
+    const torrentMatch = /^\/api\/browse\/torrents\/([^/]+)$/.exec(path);
+    if (method === 'DELETE' && torrentMatch) {
+      if (options.deleteStatus !== undefined) {
+        return json(options.deleteStatus, { error: 'delete failed' });
+      }
+      const hash = decodeURIComponent(torrentMatch[1] as string).toLowerCase();
+      if (!state.torrents.includes(hash)) {
+        return json(404, { error: 'torrent not found' });
+      }
+      state.torrents = state.torrents.filter((known) => known !== hash);
+      return json(200, { status: 'deleted' });
     }
     return json(404, { error: `No fake route for ${method} ${path}` });
   }

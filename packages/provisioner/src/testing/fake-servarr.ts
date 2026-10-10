@@ -1,4 +1,10 @@
-import type { ArrKind, HealthResource, QueueRecord } from '../arr/arr.types';
+import type {
+  ArrKind,
+  HealthResource,
+  HistoryRecord,
+  QueueRecord,
+  TitleResource,
+} from '../arr/arr.types';
 import type { FetchLike } from '../http/http.types';
 import type { ProviderField } from '../http/provider-fields';
 import { type FakeRequest, toFakeRequest } from './fake-fetch';
@@ -17,6 +23,8 @@ export interface FakeServarrOptions {
   queue?: readonly QueueRecord[];
   jellyfinApiKey?: string;
   health?: readonly HealthResource[];
+  titles?: readonly TitleResource[];
+  history?: readonly HistoryRecord[];
 }
 
 export interface FakeServarrState {
@@ -30,6 +38,8 @@ export interface FakeServarrState {
   queue: QueueRecord[];
   blocklist: QueueRecord[];
   health: HealthResource[];
+  titles: TitleResource[];
+  history: HistoryRecord[];
 }
 
 export interface FakeServarr {
@@ -42,6 +52,7 @@ export interface FakeServarr {
   writes(): FakeRequest[];
   canLogin(username: string, password: string): boolean;
   queueRemovals(): FakeRequest[];
+  titleDeletions(): FakeRequest[];
 }
 
 const MASK = '********';
@@ -488,6 +499,8 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
     notifications: [],
     queue: (options.queue ?? []).map((record) => structuredClone(record)),
     blocklist: [],
+    titles: structuredClone([...(options.titles ?? [])]),
+    history: structuredClone([...(options.history ?? [])]),
     health: structuredClone([
       ...(options.health ?? [
         {
@@ -775,6 +788,39 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
       }
       return json(200, {});
     }
+    const collection = kind === 'radarr' ? 'movie' : 'series';
+    const idField = kind === 'radarr' ? 'movieId' : 'seriesId';
+    if (method === 'GET' && path === `/api/v3/${collection}`) {
+      return json(200, state.titles);
+    }
+    if (method === 'GET' && path === `/api/v3/history/${collection}`) {
+      const titleId = Number(query[idField]);
+      return json(
+        200,
+        state.history.filter((record) => record[idField] === titleId),
+      );
+    }
+    if (method === 'GET' && path === '/api/v3/history') {
+      const page = Number(query.page ?? 1);
+      const pageSize = Number(query.pageSize ?? 10);
+      const matching = state.history.filter((record) => record.downloadId === query.downloadId);
+      return json(200, {
+        page,
+        pageSize,
+        totalRecords: matching.length,
+        records: matching.slice((page - 1) * pageSize, page * pageSize),
+      });
+    }
+    const titleMatch = new RegExp(`^/api/v3/${collection}/(\\d+)$`).exec(path);
+    if (method === 'DELETE' && titleMatch) {
+      const id = Number(titleMatch[1]);
+      if (!state.titles.some((title) => title.id === id)) {
+        return json(404, { message: 'NotFound' });
+      }
+      state.titles = state.titles.filter((title) => title.id !== id);
+      state.history = state.history.filter((record) => record[idField] !== id);
+      return json(200, {});
+    }
     if (method === 'GET' && path === '/api/v3/language') {
       return json(200, languages);
     }
@@ -1042,6 +1088,12 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
     queueRemovals: () =>
       requests.filter(
         (request) => request.method === 'DELETE' && request.path.startsWith('/api/v3/queue/'),
+      ),
+    titleDeletions: () =>
+      requests.filter(
+        (request) =>
+          request.method === 'DELETE' &&
+          (request.path.startsWith('/api/v3/movie/') || request.path.startsWith('/api/v3/series/')),
       ),
     canLogin: (username, password) =>
       user.name !== '' &&

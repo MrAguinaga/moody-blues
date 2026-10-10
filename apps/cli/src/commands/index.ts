@@ -7,6 +7,12 @@ export {
   parseStuckAfter,
 } from './doctor.command';
 export { createLogsCommand, executeLogs, type LogsSettings } from './logs.command';
+export {
+  createRemoveCommand,
+  executeRemove,
+  parseExternalId,
+  type RemoveSettings,
+} from './remove.command';
 export { createResetCommand, executeReset, type ResetSettings } from './reset.command';
 export { handleRootAction, type RootActionOptions, startInteractiveWelcome } from './root.command';
 export { createSetupCommand, executeSetup, type SetupSettings } from './setup.command';

@@ -57,6 +57,7 @@ export interface FakeJellyfinState {
   libraries: VirtualFolder[];
   failedLogins: number;
   passwordChanges: string[];
+  refreshes: number;
 }
 
 export interface FakeJellyfin {
@@ -196,6 +197,7 @@ export function createFakeJellyfin(options: FakeJellyfinOptions = {}): FakeJelly
     libraries: (options.libraries ?? []).map((library) => structuredClone(library)),
     failedLogins: 0,
     passwordChanges: [],
+    refreshes: 0,
   };
   const requests: FakeRequest[] = [];
   const counters = {
@@ -423,6 +425,10 @@ export function createFakeJellyfin(options: FakeJellyfinOptions = {}): FakeJelly
     }
     if (key === 'POST /System/Configuration/encoding') {
       state.encoding = structuredClone(request.body) as EncodingOptions;
+      return reply(204);
+    }
+    if (key === 'POST /Library/Refresh') {
+      state.refreshes += 1;
       return reply(204);
     }
     if (path.startsWith('/Library/VirtualFolders')) {

@@ -218,3 +218,72 @@ describe('createSeerrClient', () => {
     }
   });
 });
+
+describe('createSeerrClient media', () => {
+  const media = (id: number, mediaType: 'movie' | 'tv', tmdbId: number, tvdbId?: number) => ({
+    id,
+    mediaType,
+    tmdbId,
+    tvdbId: tvdbId ?? null,
+  });
+
+  it('finds a movie by tmdbId and a series by tvdbId, matching the media type', async () => {
+    const { fake, client } = setupFake({
+      initialized: true,
+      media: [media(1, 'tv', 603, 81189), media(2, 'movie', 603), media(3, 'tv', 1396, 73244)],
+    });
+
+    await expect(client.findMedia({ mediaType: 'movie', tmdbId: 603 })).resolves.toMatchObject({
+      id: 2,
+    });
+    await expect(client.findMedia({ mediaType: 'tv', tvdbId: 73244 })).resolves.toMatchObject({
+      id: 3,
+    });
+    await expect(client.findMedia({ mediaType: 'tv', tmdbId: 9999 })).resolves.toBeUndefined();
+    expect(fake.requests[0]?.headers['x-api-key']).toBe(FAKE_SEERR_API_KEY);
+  });
+
+  it('does not mix the tmdbId and tvdbId number spaces', async () => {
+    const { client } = setupFake({ initialized: true, media: [media(1, 'tv', 100, 200)] });
+
+    await expect(client.findMedia({ mediaType: 'tv', tvdbId: 100 })).resolves.toBeUndefined();
+    await expect(client.findMedia({ mediaType: 'tv', tmdbId: 200 })).resolves.toBeUndefined();
+  });
+
+  it('keeps reading pages of 100 until it finds the title', async () => {
+    const { fake, client } = setupFake({
+      initialized: true,
+      media: Array.from({ length: 150 }, (_, index) => media(index + 1, 'movie', 1000 + index)),
+    });
+
+    await expect(client.findMedia({ mediaType: 'movie', tmdbId: 1149 })).resolves.toMatchObject({
+      id: 150,
+    });
+    expect(fake.requests.map((request) => request.query)).toEqual([
+      { take: '100', skip: '0' },
+      { take: '100', skip: '100' },
+    ]);
+  });
+
+  it('deletes the record by id and treats 404 as already gone', async () => {
+    const { fake, client } = setupFake({
+      initialized: true,
+      media: [media(7, 'movie', 603)],
+    });
+
+    await expect(client.deleteMedia(7)).resolves.toBe(true);
+    await expect(client.deleteMedia(7)).resolves.toBe(false);
+
+    expect(fake.state.media).toEqual([]);
+    expect(fake.requests[0]).toMatchObject({ method: 'DELETE', path: '/api/v1/media/7' });
+    expect(fake.requests[0]?.headers['x-api-key']).toBe(FAKE_SEERR_API_KEY);
+  });
+
+  it('does not retry a failed deletion', async () => {
+    const { routes, client } = setupRoutes();
+    routes.on('DELETE', '/api/v1/media/7', { status: 500, body: { message: 'boom' } });
+
+    await expect(client.deleteMedia(7)).rejects.toMatchObject({ status: 500 });
+    expect(routes.count('DELETE')).toBe(1);
+  });
+});
