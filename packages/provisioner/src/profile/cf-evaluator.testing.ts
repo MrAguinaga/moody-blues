@@ -9,12 +9,15 @@ export interface ReleaseSample {
   title: string;
   releaseGroup?: string;
   source?: string;
+  qualityModifier?: string;
+  resolution?: number;
   languages?: readonly string[];
   originalLanguage?: string;
 }
 
 const ORIGINAL_OPTION = 'Original';
 const DEFAULT_ORIGINAL_LANGUAGE = 'English';
+const TITLE_RESOLUTION = /\b(360|480|540|576|720|1080|2160)[pi]\b/i;
 
 function optionName(value: FieldDefinition | undefined): string {
   return typeof value === 'object' && value !== null ? value.option : String(value);
@@ -22,6 +25,11 @@ function optionName(value: FieldDefinition | undefined): string {
 
 function groupFromTitle(title: string): string {
   return /-([A-Za-z0-9]+)$/.exec(title)?.[1] ?? '';
+}
+
+function resolutionOf(release: ReleaseSample): number | undefined {
+  const fromTitle = TITLE_RESOLUTION.exec(release.title)?.[1];
+  return release.resolution ?? (fromTitle === undefined ? undefined : Number(fromTitle));
 }
 
 function languageMatches(specification: SpecificationDefinition, release: ReleaseSample): boolean {
@@ -44,6 +52,10 @@ function satisfied(specification: SpecificationDefinition, release: ReleaseSampl
       );
     case 'SourceSpecification':
       return release.source === optionName(specification.fields.value);
+    case 'ResolutionSpecification':
+      return resolutionOf(release) === Number(specification.fields.value);
+    case 'QualityModifierSpecification':
+      return release.qualityModifier === optionName(specification.fields.value);
     case 'LanguageSpecification':
       return languageMatches(specification, release);
   }

@@ -1,9 +1,22 @@
 import type { ArrKind } from '../arr/arr.types';
+import { AFTER_TITLE } from './language-formats.profile';
 import type { ScoredFormat, SpecificationDefinition } from './profile.types';
 
+export const RESOLUTION_1080P_SCORE = 400;
+export const REMUX_SCORE = -300;
+export const FOREIGN_SUBTITLES_SCORE = -1500;
 export const H264_SCORE = 150;
 export const REPACK_SCORE = 5;
 export const BLOCKING_SCORE = -10000;
+
+// Spanish, English and Japanese are the owner's own languages and MultiSub names no language, so none of them appear here.
+const FOREIGN_LANGUAGE = String.raw`(?:ita(?:lian[oa]?)?|fre(?:nch)?|fra|fr|ger(?:man)?|deu|rus(?:sian)?|ara(?:bic)?|por(?:tuguese)?|pt(?:[ ._-]?br)?|kor(?:ean)?|chi(?:nese)?|chs|cht|pol(?:ish)?|tur(?:kish)?|dut(?:ch)?|nld|swe|dan|nor|fin|hin(?:di)?|tha|vie|ind|heb|gre|cze|hun|rum|ukr|bul)`;
+const SUBTITLES_WORD = String.raw`(?:hard)?sub(?:s|bed|titles?)?`;
+
+// A bare language tag such as ITA is also an audio track in multi-audio releases, so a mark only counts next to the word "sub".
+export const FOREIGN_SUBTITLES_RE =
+  AFTER_TITLE +
+  String.raw`(?:\b${FOREIGN_LANGUAGE}[ ._-]?${SUBTITLES_WORD}\b|\b${SUBTITLES_WORD}[ ._-]?${FOREIGN_LANGUAGE}\b|\bVOST(?:FR|A|IT|DE|RU|PT)\b)`;
 
 const SOURCE_OPTIONS: Readonly<Record<ArrKind, { webDl: string; webRip: string }>> = {
   radarr: { webDl: 'WEBDL', webRip: 'WEBRIP' },
@@ -34,9 +47,51 @@ function source(name: string, option: string): SpecificationDefinition {
   };
 }
 
+// Sonarr has no quality modifier condition: its Remux is the BlurayRaw source.
+const REMUX_SPECIFICATION: Readonly<Record<ArrKind, SpecificationDefinition>> = {
+  radarr: {
+    name: 'Remux',
+    implementation: 'QualityModifierSpecification',
+    negate: false,
+    required: true,
+    fields: { value: { option: 'REMUX' } },
+  },
+  sonarr: {
+    name: 'Remux',
+    implementation: 'SourceSpecification',
+    negate: false,
+    required: true,
+    fields: { value: { option: 'BlurayRaw' } },
+  },
+};
+
 export function buildCodecFormats(kind: ArrKind): ScoredFormat[] {
   const sources = SOURCE_OPTIONS[kind];
   return [
+    {
+      score: RESOLUTION_1080P_SCORE,
+      format: {
+        name: '1080p',
+        includeCustomFormatWhenRenaming: false,
+        specifications: [
+          {
+            name: '1080p',
+            implementation: 'ResolutionSpecification',
+            negate: false,
+            required: true,
+            fields: { value: 1080 },
+          },
+        ],
+      },
+    },
+    {
+      score: REMUX_SCORE,
+      format: {
+        name: 'Remux',
+        includeCustomFormatWhenRenaming: false,
+        specifications: [REMUX_SPECIFICATION[kind]],
+      },
+    },
     {
       score: H264_SCORE,
       format: {
@@ -60,6 +115,14 @@ export function buildCodecFormats(kind: ArrKind): ScoredFormat[] {
             },
           ),
         ],
+      },
+    },
+    {
+      score: FOREIGN_SUBTITLES_SCORE,
+      format: {
+        name: 'Subtítulos ajenos',
+        includeCustomFormatWhenRenaming: false,
+        specifications: [title('Foreign subtitles', FOREIGN_SUBTITLES_RE)],
       },
     },
     {

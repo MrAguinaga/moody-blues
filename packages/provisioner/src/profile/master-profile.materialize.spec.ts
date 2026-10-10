@@ -67,21 +67,43 @@ describe.each(ARR_KINDS)('materializeProfile (%s)', (kind) => {
     expect(first).toMatchObject({ quality: { name: 'Unknown' }, allowed: false });
   });
 
-  it('replaces the WEB 1080p group with a new HD 1080p group and cuts off at it', async () => {
+  it('merges the WEB 720p and WEB 1080p groups into one HD group and cuts off at it', async () => {
     const { schema, plan, formats } = await load(kind);
 
     const profile = materializeProfile(plan, schema, formats, LANGUAGE_IDS);
     const groups = profile.items.filter((item) => !item.quality);
-    const hdGroup = groups.find((group) => group.name === 'HD 1080p');
+    const hdGroup = groups.find((group) => group.name === 'HD');
 
-    expect(groups.map((group) => group.name)).not.toContain('WEB 1080p');
+    expect(groups.map((group) => group.name)).toEqual(['WEB 480p', 'HD', 'WEB 2160p']);
     expect(hdGroup).toMatchObject({ id: 1004, allowed: true });
-    expect(hdGroup?.items.map((item) => item.quality?.name).sort()).toEqual([
-      'Bluray-1080p',
-      'WEBDL-1080p',
-      'WEBRip-1080p',
-    ]);
+    expect(hdGroup?.items.map((item) => item.quality?.name).sort()).toEqual(
+      [
+        'HDTV-720p',
+        'WEBDL-720p',
+        'WEBRip-720p',
+        'Bluray-720p',
+        'HDTV-1080p',
+        kind === 'radarr' ? 'Remux-1080p' : 'Bluray-1080p Remux',
+        'WEBRip-1080p',
+        'WEBDL-1080p',
+        'Bluray-1080p',
+      ].sort(),
+    );
     expect(profile.cutoff).toBe(1004);
+  });
+
+  it('keeps the SD qualities enabled below the HD group', async () => {
+    const { schema, plan, formats } = await load(kind);
+
+    const names = materializeProfile(plan, schema, formats, LANGUAGE_IDS).items.map(
+      (item) => item.quality?.name ?? item.name,
+    );
+    const sd = names.filter((name) => /^(SDTV|DVD|Bluray-480p|Bluray-576p)$/.test(String(name)));
+
+    expect(sd.length).toBeGreaterThanOrEqual(4);
+    for (const name of sd) {
+      expect(names.indexOf(name)).toBeLessThan(names.indexOf('HD'));
+    }
   });
 
   it('builds valid groups with unique identifiers and unnamed single qualities', async () => {
@@ -146,7 +168,7 @@ describe.each(ARR_KINDS)('materializeProfile (%s)', (kind) => {
     const existing: QualityProfileResource = {
       ...first,
       id: 7,
-      items: first.items.map((item) => (item.name === 'HD 1080p' ? { ...item, id: 2500 } : item)),
+      items: first.items.map((item) => (item.name === 'HD' ? { ...item, id: 2500 } : item)),
       cutoff: 2500,
     };
 
@@ -202,6 +224,59 @@ describe('materializeProfile language resolution', () => {
   });
 });
 
+describe.each(ARR_KINDS)('profile stored with the previous quality tree (%s)', (kind) => {
+  const ENCODES_1080P = /^(WEBRip|WEBDL|Bluray)-1080p$/;
+
+  async function stored() {
+    const { schema, plan, formats } = await load(kind);
+    const previousLayers = plan.layers.flatMap((layer) => {
+      if (layer.groupName !== 'HD') {
+        return [layer];
+      }
+      const encodes = layer.qualityNames.filter((name) => ENCODES_1080P.test(name));
+      return [
+        ...layer.qualityNames
+          .filter((name) => !ENCODES_1080P.test(name))
+          .map((name) => ({ qualityNames: [name], allowed: true })),
+        { groupName: 'HD 1080p', qualityNames: encodes, allowed: true },
+      ];
+    });
+    const previous = materializeProfile(
+      { ...plan, cutoffGroupName: 'HD 1080p', cutoffFormatScore: 4000, layers: previousLayers },
+      schema,
+      formats,
+      LANGUAGE_IDS,
+    );
+    return { schema, plan, formats, existing: { ...previous, id: 7 } };
+  }
+
+  it('is not equivalent to the new profile', async () => {
+    const { schema, plan, formats, existing } = await stored();
+
+    const desired = materializeProfile(plan, schema, formats, LANGUAGE_IDS, existing);
+
+    expect(profilesEquivalent(existing, desired)).toBe(false);
+  });
+
+  it('is rebuilt on the same profile id with the HD cutoff and the new cutoff score', async () => {
+    const { schema, plan, formats, existing } = await stored();
+
+    const desired = materializeProfile(plan, schema, formats, LANGUAGE_IDS, existing);
+
+    expect(desired.id).toBe(7);
+    expect(desired.cutoffFormatScore).toBe(plan.cutoffFormatScore);
+    expect(desired.items.filter((item) => !item.quality).map((item) => item.name)).toEqual([
+      'WEB 480p',
+      'HD',
+      'WEB 2160p',
+    ]);
+    expect(desired.items.find((item) => item.id === desired.cutoff)?.name).toBe('HD');
+    expect(
+      profilesEquivalent(desired, materializeProfile(plan, schema, formats, LANGUAGE_IDS, desired)),
+    ).toBe(true);
+  });
+});
+
 describe('profilesEquivalent', () => {
   async function built() {
     const { schema, plan, formats } = await load('radarr');
@@ -234,7 +309,7 @@ describe('profilesEquivalent', () => {
   it('treats the order of the members inside a group as irrelevant', async () => {
     const profile = await built();
     const stored = structuredClone(profile);
-    stored.items.find((item) => item.name === 'HD 1080p')?.items.reverse();
+    stored.items.find((item) => item.name === 'HD')?.items.reverse();
 
     expect(profilesEquivalent(stored, profile)).toBe(true);
   });

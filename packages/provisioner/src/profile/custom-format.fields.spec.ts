@@ -24,6 +24,12 @@ async function schemaFor(kind: 'sonarr' | 'radarr'): Promise<SpecificationSchema
   return client.getCustomFormatSchema();
 }
 
+function codecFormat(kind: 'sonarr' | 'radarr', name: string) {
+  return buildCodecFormats(kind).find(({ format }) => format.name === name)!.format;
+}
+
+const dvFormat = (kind: 'sonarr' | 'radarr') => codecFormat(kind, 'DV sin fallback HDR10');
+
 const [original] = buildLanguageFormats(['original']);
 const dualLatino = buildLanguageFormats(['es-419+original'])[0]!;
 
@@ -43,7 +49,7 @@ describe('toApiFields', () => {
 describe('resolveSpecificationFields', () => {
   it('resolves named options against the select options of the server schema', async () => {
     const schema = await schemaFor('radarr');
-    const [webDl] = buildCodecFormats('radarr')[2]!.format.specifications.filter(
+    const [webDl] = dvFormat('radarr').specifications.filter(
       (specification) => specification.implementation === 'SourceSpecification',
     );
 
@@ -52,7 +58,7 @@ describe('resolveSpecificationFields', () => {
 
   it('resolves the source options with the names of the target application', async () => {
     const schema = await schemaFor('sonarr');
-    const sources = buildCodecFormats('sonarr')[2]!.format.specifications.filter(
+    const sources = dvFormat('sonarr').specifications.filter(
       (specification) => specification.implementation === 'SourceSpecification',
     );
 
@@ -63,11 +69,36 @@ describe('resolveSpecificationFields', () => {
 
   it('fails when the schema does not offer the named option', async () => {
     const schema = await schemaFor('sonarr');
-    const [webDl] = buildCodecFormats('radarr')[2]!.format.specifications.filter(
+    const [webDl] = dvFormat('radarr').specifications.filter(
       (specification) => specification.implementation === 'SourceSpecification',
     );
 
     expect(() => resolveSpecificationFields(webDl!, schema)).toThrow(CustomFormatSchemaError);
+  });
+
+  it('resolves the Remux condition of each application against its own schema', async () => {
+    const radarr = codecFormat('radarr', 'Remux').specifications[0]!;
+    const sonarr = codecFormat('sonarr', 'Remux').specifications[0]!;
+
+    expect(resolveSpecificationFields(radarr, await schemaFor('radarr'))).toEqual({ value: 5 });
+    expect(resolveSpecificationFields(sonarr, await schemaFor('sonarr'))).toEqual({ value: 7 });
+  });
+
+  it('fails when Sonarr is asked for the quality modifier it does not offer', async () => {
+    const schema = await schemaFor('sonarr');
+    const radarr = codecFormat('radarr', 'Remux').specifications[0]!;
+
+    expect(() => resolveSpecificationFields(radarr, schema)).toThrow(
+      /QualityModifierSpecification/,
+    );
+  });
+
+  it('keeps the resolution as the number the server stores', async () => {
+    const specification = codecFormat('sonarr', '1080p').specifications[0]!;
+
+    expect(resolveSpecificationFields(specification, await schemaFor('sonarr'))).toEqual({
+      value: 1080,
+    });
   });
 
   it('fails when the server does not know the implementation', () => {

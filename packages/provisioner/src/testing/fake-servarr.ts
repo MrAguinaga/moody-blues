@@ -360,7 +360,7 @@ const SCHEMA_ENTRIES: Readonly<Record<ArrKind, readonly SchemaEntry[]>> = {
   ],
 };
 
-const SPECIFICATION_IMPLEMENTATIONS = [
+const COMMON_SPECIFICATIONS = [
   'ReleaseTitleSpecification',
   'ReleaseGroupSpecification',
   'LanguageSpecification',
@@ -368,6 +368,29 @@ const SPECIFICATION_IMPLEMENTATIONS = [
   'ResolutionSpecification',
   'SizeSpecification',
   'IndexerFlagSpecification',
+];
+
+const SPECIFICATION_IMPLEMENTATIONS: Readonly<Record<ArrKind, readonly string[]>> = {
+  radarr: [...COMMON_SPECIFICATIONS, 'QualityModifierSpecification'],
+  sonarr: COMMON_SPECIFICATIONS,
+};
+
+const RESOLUTION_OPTIONS: readonly QualityEntry[] = [
+  [360, 'R360p'],
+  [480, 'R480p'],
+  [540, 'R540p'],
+  [576, 'R576p'],
+  [720, 'R720p'],
+  [1080, 'R1080p'],
+  [2160, 'R2160p'],
+];
+
+const QUALITY_MODIFIER_OPTIONS: readonly QualityEntry[] = [
+  [1, 'BRDISK'],
+  [2, 'REGIONAL'],
+  [3, 'SCREENER'],
+  [4, 'RAWHD'],
+  [5, 'REMUX'],
 ];
 
 const SOURCE_OPTIONS: Readonly<Record<ArrKind, readonly QualityEntry[]>> = {
@@ -382,10 +405,12 @@ const SOURCE_OPTIONS: Readonly<Record<ArrKind, readonly QualityEntry[]>> = {
   sonarr: [
     [0, 'Unknown'],
     [1, 'Television'],
+    [2, 'TelevisionRaw'],
     [3, 'Web'],
     [4, 'WebRip'],
     [5, 'DVD'],
     [6, 'Bluray'],
+    [7, 'BlurayRaw'],
   ],
 };
 
@@ -415,7 +440,7 @@ function selectField(name: string, options: readonly QualityEntry[]) {
 }
 
 function specificationSchema(kind: ArrKind, languages: ReturnType<typeof languagesFor>) {
-  return SPECIFICATION_IMPLEMENTATIONS.map((implementation) => {
+  return SPECIFICATION_IMPLEMENTATIONS[kind].map((implementation) => {
     const fields =
       implementation === 'LanguageSpecification'
         ? [
@@ -427,7 +452,11 @@ function specificationSchema(kind: ArrKind, languages: ReturnType<typeof languag
           ]
         : implementation === 'SourceSpecification'
           ? [selectField('value', SOURCE_OPTIONS[kind])]
-          : [{ name: 'value', type: 'textbox' }];
+          : implementation === 'ResolutionSpecification'
+            ? [selectField('value', RESOLUTION_OPTIONS)]
+            : implementation === 'QualityModifierSpecification'
+              ? [selectField('value', QUALITY_MODIFIER_OPTIONS)]
+              : [{ name: 'value', type: 'textbox' }];
     return { implementation, implementationName: implementation, fields };
   });
 }
@@ -638,7 +667,7 @@ export function createFakeServarr(options: FakeServarrOptions): FakeServarr {
           'Condition name(s) cannot be empty or consist of only spaces',
         );
       }
-      if (!SPECIFICATION_IMPLEMENTATIONS.includes(String(specification.implementation))) {
+      if (!SPECIFICATION_IMPLEMENTATIONS[kind].includes(String(specification.implementation))) {
         return validation(
           'Implementation',
           `${String(specification.implementation)} is not a valid specification implementation`,

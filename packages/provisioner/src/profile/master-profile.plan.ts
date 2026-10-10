@@ -1,6 +1,6 @@
 import type { ArrKind } from '../arr/arr.types';
 import type { LanguageSettings, QualityTier } from '../config/config.types';
-import { buildCodecFormats } from './codec-formats.profile';
+import { buildCodecFormats, RESOLUTION_1080P_SCORE } from './codec-formats.profile';
 import { buildLanguageFormats } from './language-formats.profile';
 import { type ProfilePlan, UnsupportedTierError } from './profile.types';
 import { CUTOFF_GROUP_NAME, QUALITY_LAYERS } from './quality-layers.profile';
@@ -30,7 +30,7 @@ export function buildProfilePlan(
     cutoffGroupName: CUTOFF_GROUP_NAME,
     upgradeAllowed: true,
     minFormatScore: 0,
-    cutoffFormatScore: languageFormats[0]?.score ?? 0,
+    cutoffFormatScore: (languageFormats[0]?.score ?? 0) + RESOLUTION_1080P_SCORE,
     minUpgradeFormatScore: MIN_UPGRADE_FORMAT_SCORE,
     ...(kind === 'radarr' ? { languageName: RADARR_ANY_LANGUAGE } : {}),
     layers: QUALITY_LAYERS[kind],

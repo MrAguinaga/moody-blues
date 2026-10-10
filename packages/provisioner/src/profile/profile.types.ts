@@ -10,7 +10,9 @@ export type SpecificationImplementation =
   | 'ReleaseTitleSpecification'
   | 'ReleaseGroupSpecification'
   | 'LanguageSpecification'
-  | 'SourceSpecification';
+  | 'SourceSpecification'
+  | 'ResolutionSpecification'
+  | 'QualityModifierSpecification';
 
 export interface SpecificationDefinition {
   name: string;

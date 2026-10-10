@@ -70,7 +70,7 @@ describe.each(ARR_KINDS)('applyMasterProfile (%s)', (kind) => {
     server = createFakeServarr({ kind, apiKey: API_KEYS[kind] });
   });
 
-  it('creates the eight custom formats and the profile on the first run', async () => {
+  it('creates the eleven custom formats and the profile on the first run', async () => {
     const outcome = await apply(kind, server);
 
     expect(outcome.status).toBe('changed');
@@ -79,8 +79,11 @@ describe.each(ARR_KINDS)('applyMasterProfile (%s)', (kind) => {
       'Latino',
       'Original',
       'Castellano',
+      '1080p',
+      'Remux',
       'H.264',
       'Repack/Proper',
+      'Subtítulos ajenos',
       'DV sin fallback HDR10',
       'AV1',
     ]);
@@ -89,8 +92,11 @@ describe.each(ARR_KINDS)('applyMasterProfile (%s)', (kind) => {
       Latino: 3000,
       Original: 2000,
       Castellano: 1000,
+      '1080p': 400,
+      Remux: -300,
       'H.264': 150,
       'Repack/Proper': 5,
+      'Subtítulos ajenos': -1500,
       'DV sin fallback HDR10': -10000,
       AV1: -10000,
     });
@@ -100,8 +106,8 @@ describe.each(ARR_KINDS)('applyMasterProfile (%s)', (kind) => {
     await apply(kind, server);
 
     const writes = sentWrites(server);
-    expect(writes.slice(0, 8).every((write) => write === 'POST /api/v3/customformat')).toBe(true);
-    expect(writes[8]).toBe('POST /api/v3/qualityprofile');
+    expect(writes.slice(0, 11).every((write) => write === 'POST /api/v3/customformat')).toBe(true);
+    expect(writes[11]).toBe('POST /api/v3/qualityprofile');
   });
 
   it('sends the specification fields as an array of name and value', async () => {
@@ -115,7 +121,7 @@ describe.each(ARR_KINDS)('applyMasterProfile (%s)', (kind) => {
     ]);
   });
 
-  it('stores the cutoff as the HD 1080p group and keeps the planned quality order', async () => {
+  it('stores the cutoff as the HD group and keeps the planned quality order', async () => {
     await apply(kind, server);
 
     const profile = server.state.qualityProfiles.find(
@@ -123,13 +129,13 @@ describe.each(ARR_KINDS)('applyMasterProfile (%s)', (kind) => {
     );
     const items = profile?.items as { id?: number; name?: string; allowed: boolean }[];
     expect(items.find((item) => item.id === profile?.cutoff)).toMatchObject({
-      name: 'HD 1080p',
+      name: 'HD',
       allowed: true,
     });
     expect(profile).toMatchObject({
       upgradeAllowed: true,
       minFormatScore: 0,
-      cutoffFormatScore: 4000,
+      cutoffFormatScore: 4400,
       minUpgradeFormatScore: 50,
     });
   });
@@ -163,6 +169,40 @@ describe.each(ARR_KINDS)('applyMasterProfile (%s)', (kind) => {
     expect(outcome).toEqual({ status: 'unchanged' });
     expect(server.writes()).toHaveLength(before);
     expect(server.requests.at(-1)?.method).toBe('GET');
+  });
+
+  it('updates a profile stored with the previous quality tree and then stays quiet', async () => {
+    const previous = planFor(kind);
+    const encodes = /^(WEBRip|WEBDL|Bluray)-1080p$/;
+    await apply(kind, server, {
+      ...previous,
+      cutoffGroupName: 'HD 1080p',
+      cutoffFormatScore: 4000,
+      layers: previous.layers.flatMap((layer) =>
+        layer.groupName !== 'HD'
+          ? [layer]
+          : [
+              ...layer.qualityNames
+                .filter((name) => !encodes.test(name))
+                .map((name) => ({ qualityNames: [name], allowed: true })),
+              {
+                groupName: 'HD 1080p',
+                qualityNames: layer.qualityNames.filter((name) => encodes.test(name)),
+                allowed: true,
+              },
+            ],
+      ),
+    });
+    const before = server.writes().length;
+    const profile = server.state.qualityProfiles[0]!;
+
+    const outcome = await apply(kind, server);
+
+    expect(outcome).toEqual({ status: 'changed', detail: 'updated profile Moody Blues' });
+    expect(sentWrites(server, before)).toEqual([`PUT /api/v3/qualityprofile/${profile.id}`]);
+    expect(server.state.qualityProfiles[0]).toMatchObject({ cutoffFormatScore: 4400 });
+    expect(await apply(kind, server)).toEqual({ status: 'unchanged' });
+    expect(server.writes()).toHaveLength(before + 1);
   });
 
   it('gives a foreign custom format a score of zero and keeps it untouched', async () => {
@@ -341,6 +381,29 @@ describe('Radarr specifics', () => {
   });
 });
 
+describe('new custom format conditions', () => {
+  const conditions = (server: FakeServarr, name: string) =>
+    (
+      server.state.customFormats.find((format) => format.name === name)?.specifications as {
+        implementation: string;
+        fields: { value: unknown }[];
+      }[]
+    ).map((spec) => [spec.implementation, spec.fields[0]?.value]);
+
+  it('resolves the Remux and the resolution with the conditions of each application', async () => {
+    const radarr = createFakeServarr({ kind: 'radarr', apiKey: API_KEYS.radarr });
+    const sonarr = createFakeServarr({ kind: 'sonarr', apiKey: API_KEYS.sonarr });
+
+    await apply('radarr', radarr);
+    await apply('sonarr', sonarr);
+
+    expect(conditions(radarr, 'Remux')).toEqual([['QualityModifierSpecification', 5]]);
+    expect(conditions(sonarr, 'Remux')).toEqual([['SourceSpecification', 7]]);
+    expect(conditions(radarr, '1080p')).toEqual([['ResolutionSpecification', 1080]]);
+    expect(conditions(sonarr, '1080p')).toEqual([['ResolutionSpecification', 1080]]);
+  });
+});
+
 describe('server rules enforced by the fake', () => {
   const specification = {
     name: 'Any',
@@ -477,8 +540,8 @@ describe('master-profile step', () => {
     const second = await runPipeline([step], context(), { scope: 'setup' });
 
     expect(first.steps[0]).toMatchObject({ id: 'master-profile', status: 'changed' });
-    expect(first.steps[0]?.detail).toContain('Sonarr: created 8 custom formats');
-    expect(first.steps[0]?.detail).toContain('Radarr: created 8 custom formats');
+    expect(first.steps[0]?.detail).toContain('Sonarr: created 11 custom formats');
+    expect(first.steps[0]?.detail).toContain('Radarr: created 11 custom formats');
     expect(second.steps[0]).toMatchObject({ id: 'master-profile', status: 'unchanged' });
     expect(servers.sonarr.writes().length + servers.radarr.writes().length).toBe(writes);
     for (const kind of ARR_KINDS) {
