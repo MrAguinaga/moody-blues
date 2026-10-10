@@ -124,6 +124,15 @@ function fieldValue(resource: Resource, name: string): unknown {
   return (resource.fields as ProviderField[]).find((candidate) => candidate.name === name)?.value;
 }
 
+// The real Prowlarr leaves `value` out of stored indexer fields that are null.
+function omitNullFieldValues(resource: Resource): Resource {
+  const clone = structuredClone(resource);
+  for (const entry of clone.fields as ProviderField[]) {
+    if (entry.value === null) delete entry.value;
+  }
+  return clone;
+}
+
 function cardiganSchemaItem(definitionName: string): Resource {
   const name = DISPLAY_NAMES[definitionName] ?? definitionName;
   return {
@@ -591,7 +600,7 @@ export function createFakeProwlarr(options: FakeProwlarrOptions): FakeProwlarr {
     }
     if (path === '/api/v1/indexer') {
       if (method === 'GET') {
-        return json(200, state.indexers);
+        return json(200, state.indexers.map(omitNullFieldValues));
       }
       if (method === 'POST') {
         const unknownField = checkIndexerFields(body);

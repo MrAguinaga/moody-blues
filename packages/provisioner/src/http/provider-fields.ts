@@ -41,6 +41,7 @@ export function fieldsMatch(
 ): boolean {
   return Object.entries(desired).every(([name, value]) => {
     const field = existing.fields.find((candidate) => candidate.name === name);
-    return field !== undefined && valuesEqual(field.value, value);
+    // Servarr omits `value` for null fields, so absent and null are the same value.
+    return field !== undefined && valuesEqual(field.value ?? null, value ?? null);
   });
 }

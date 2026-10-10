@@ -116,6 +116,18 @@ describe('provisionProwlarr', () => {
     expect(server.requests.slice(-1)[0]?.method).toBe('GET');
   });
 
+  it('does not rewrite existing indexers whose seeders field Prowlarr stores without a value', async () => {
+    await run(server);
+    const stored = server.state.indexers.map((indexer) => indexer.id);
+    const writesAfterFirst = server.writes().length;
+
+    const outcome = await run(server);
+
+    expect(outcome.detail ?? '').not.toContain('updated indexers');
+    expect(server.writes()).toHaveLength(writesAfterFirst);
+    expect(server.state.indexers.map((indexer) => indexer.id)).toEqual(stored);
+  });
+
   it('syncs again when a later run has to repair an indexer', async () => {
     await run(server);
     server.state.indexers[0] = { ...server.state.indexers[0], enable: false };
