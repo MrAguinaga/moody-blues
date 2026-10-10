@@ -17,11 +17,12 @@ import {
 import { ARR_KINDS } from './arr.types';
 
 describe('disk safeguards (ADR-014)', () => {
-  it('skips the free space check and keeps an empty recycle bin', () => {
+  it('skips the free space check and recycles replaced files for seven days', () => {
     const settings = buildMediaManagementSettings();
 
     expect(settings.skipFreeSpaceCheckWhenImporting).toBe(true);
-    expect(settings.recycleBin).toBe('');
+    expect(settings.recycleBin).toBe('/data/media/.recycle');
+    expect(settings.recycleBinCleanupDays).toBe(7);
   });
 
   it('keeps the other media management values chosen for FUSE-backed storage', () => {

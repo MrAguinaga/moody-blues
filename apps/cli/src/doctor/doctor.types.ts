@@ -36,6 +36,7 @@ export const DOCTOR_CHECK_IDS = [
   'realdebrid-account',
   'stuck-downloads',
   'decypharr-reinsertion',
+  'library',
   'bazarr-providers',
 ] as const;
 

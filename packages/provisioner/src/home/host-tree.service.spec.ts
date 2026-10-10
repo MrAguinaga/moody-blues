@@ -33,6 +33,7 @@ describe('ensureHostTree', () => {
       layout.debridMountDir,
       join(layout.downloadsDir, 'sonarr'),
       join(layout.mediaDir, 'movies'),
+      join(layout.mediaDir, '.recycle'),
     ]) {
       expect(statSync(path).isDirectory()).toBe(true);
     }

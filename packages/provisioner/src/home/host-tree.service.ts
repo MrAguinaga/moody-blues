@@ -6,6 +6,7 @@ import { type MbHomeLayout, SERVICE_NAMES } from './home.paths';
 import { applyOwnership, type OwnershipOptions } from './host-identity.utils';
 
 const DIRECTORY_MODE = 0o775;
+const RECYCLE_DIRECTORY = '.recycle';
 
 export interface HostTreeResult {
   created: string[];
@@ -30,6 +31,7 @@ export function listTreeDirectories(layout: MbHomeLayout): string[] {
     layout.mediaDir,
     join(layout.mediaDir, 'movies'),
     join(layout.mediaDir, 'tv'),
+    join(layout.mediaDir, RECYCLE_DIRECTORY),
   ];
 }
 

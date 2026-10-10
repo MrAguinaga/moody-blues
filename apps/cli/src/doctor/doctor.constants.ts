@@ -22,6 +22,9 @@ export const REINSERTION_THRESHOLD = 3;
 export const LOG_TAIL_BYTES = 512 * 1024;
 export const REINSERTION_MARKER = 'Successfully re-inserted entry';
 
+export const NEW_SERIES_GRACE_MS = 60 * MINUTE_MS;
+export const NEW_EPISODE_GRACE_MS = 24 * 60 * MINUTE_MS;
+
 export const MAX_FIX_ITEMS = 10;
 export const FIX_SETTLE_MS = 30_000;
 export const MAX_DETAIL_LINES = 10;

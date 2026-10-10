@@ -16,6 +16,9 @@ const JELLYFIN_TRIGGERS: Readonly<Record<ArrKind, readonly string[]>> = {
   radarr: ['onDownload', 'onUpgrade', 'onRename', 'onMovieDelete', 'onMovieFileDelete'],
 };
 
+export const RECYCLE_BIN_PATH = '/data/media/.recycle';
+export const RECYCLE_BIN_CLEANUP_DAYS = 7;
+
 export const ROOT_FOLDER_PATHS: Readonly<Record<ArrKind, string>> = {
   sonarr: '/data/media/tv',
   radarr: '/data/media/movies',
@@ -129,7 +132,8 @@ export function buildDownloadClientConfigSettings(kind: ArrKind): Record<string,
 export function buildMediaManagementSettings(): Record<string, unknown> {
   return {
     skipFreeSpaceCheckWhenImporting: true,
-    recycleBin: '',
+    recycleBin: RECYCLE_BIN_PATH,
+    recycleBinCleanupDays: RECYCLE_BIN_CLEANUP_DAYS,
     downloadPropersAndRepacks: 'doNotPrefer',
     rescanAfterRefresh: 'afterManual',
     copyUsingHardlinks: true,

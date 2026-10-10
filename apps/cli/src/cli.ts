@@ -8,6 +8,7 @@ import {
   createLogsCommand,
   createRemoveCommand,
   createResetCommand,
+  createRetryCommand,
   createSetupCommand,
   createStartCommand,
   createStatusCommand,
@@ -40,6 +41,7 @@ export function buildCliProgram(): Command {
   program.addCommand(createLogsCommand());
   program.addCommand(createConfigCommand(CLI_VERSION));
   program.addCommand(createRemoveCommand(CLI_VERSION));
+  program.addCommand(createRetryCommand(CLI_VERSION));
 
   program.action(async () => {
     const globalOpts = program.opts();

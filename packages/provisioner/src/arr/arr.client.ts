@@ -3,21 +3,30 @@ import type { HttpClient, HttpClientOptions } from '../http/http.types';
 import { valuesEqual } from '../http/provider-fields';
 import { ensureServarrAdminUser, type ServarrAdminCredentials } from '../servarr/servarr-host';
 import type {
+  ArrCommandResource,
   ArrConfigName,
   ArrConfigResource,
   ArrKind,
   CustomFormatResource,
   DownloadClientResource,
+  EpisodeFileResource,
+  EpisodeResource,
   HealthResource,
   HistoryPage,
   HistoryRecord,
   LanguageResource,
+  ManualImportFile,
+  MissingEpisodeResource,
+  MissingPage,
   NotificationResource,
   QualityProfileResource,
+  QueueListOptions,
   QueuePage,
   QueueRecord,
   QueueRemovalOptions,
+  ReleaseGrab,
   ReleaseProfileResource,
+  ReleaseResource,
   RootFolderResource,
   SpecificationSchemaResource,
   SystemStatusResource,
@@ -27,6 +36,9 @@ import type {
 const API_ROOT = '/api/v3';
 const QUEUE_PAGE_SIZE = 200;
 const HISTORY_PAGE_SIZE = 200;
+const MISSING_PAGE_SIZE = 200;
+const RELEASE_SEARCH_TIMEOUT_MS = 300_000;
+const RELEASE_GRAB_TIMEOUT_MS = 60_000;
 
 const TITLE_RESOURCES = {
   radarr: { collection: 'movie', historyQuery: 'movieId', exclusionQuery: 'addImportExclusion' },
@@ -88,12 +100,21 @@ export interface ArrClient {
   listReleaseProfiles(): Promise<ReleaseProfileResource[]>;
   createReleaseProfile(resource: ReleaseProfileResource): Promise<ReleaseProfileResource>;
   updateReleaseProfile(resource: ReleaseProfileResource): Promise<ReleaseProfileResource>;
-  listQueue(): Promise<QueueRecord[]>;
+  listQueue(options?: QueueListOptions): Promise<QueueRecord[]>;
   removeQueueItem(id: number, options?: QueueRemovalOptions): Promise<void>;
   listTitles(): Promise<TitleResource[]>;
   listHistory(titleId: number): Promise<HistoryRecord[]>;
   listHistoryByDownloadId(downloadId: string): Promise<HistoryRecord[]>;
   deleteTitle(id: number): Promise<void>;
+  listMissing(): Promise<MissingEpisodeResource[]>;
+  listEpisodes(seriesId: number, seasonNumber?: number): Promise<EpisodeResource[]>;
+  listEpisodeFiles(seriesId: number): Promise<EpisodeFileResource[]>;
+  searchReleases(seriesId: number, seasonNumber: number): Promise<ReleaseResource[]>;
+  grabRelease(grab: ReleaseGrab): Promise<void>;
+  manualImport(files: readonly ManualImportFile[]): Promise<ArrCommandResource>;
+  getCommand(id: number): Promise<ArrCommandResource>;
+  deleteEpisodeFiles(episodeFileIds: readonly number[]): Promise<void>;
+  blocklistHistory(historyId: number): Promise<void>;
 }
 
 export function createArrClient(options: ArrClientOptions): ArrClient {
@@ -153,11 +174,15 @@ export function createArrClient(options: ArrClientOptions): ArrClient {
     createReleaseProfile: (resource) => http.post(`${API_ROOT}/releaseprofile`, resource),
     updateReleaseProfile: (resource) =>
       http.put(`${API_ROOT}/releaseprofile/${resource.id}`, resource),
-    listQueue: async () => {
+    listQueue: async (listing = {}) => {
       const records: QueueRecord[] = [];
       for (let page = 1; ; page += 1) {
         const result = await http.get<QueuePage>(`${API_ROOT}/queue`, {
-          query: { page, pageSize: QUEUE_PAGE_SIZE },
+          query: {
+            page,
+            pageSize: QUEUE_PAGE_SIZE,
+            ...(listing.includeUnknownSeries ? { includeUnknownSeriesItems: true } : {}),
+          },
         });
         records.push(...result.records);
         if (result.records.length === 0 || records.length >= result.totalRecords) {
@@ -195,6 +220,55 @@ export function createArrClient(options: ArrClientOptions): ArrClient {
         query: { deleteFiles: true, [titles.exclusionQuery]: false },
         retry: { attempts: 1 },
       }),
+    listMissing: async () => {
+      const records: MissingEpisodeResource[] = [];
+      for (let page = 1; ; page += 1) {
+        const result = await http.get<MissingPage>(`${API_ROOT}/wanted/missing`, {
+          query: { page, pageSize: MISSING_PAGE_SIZE, monitored: true, includeSeries: true },
+        });
+        records.push(...result.records);
+        if (result.records.length === 0 || records.length >= result.totalRecords) {
+          return records;
+        }
+      }
+    },
+    listEpisodes: (seriesId, seasonNumber) =>
+      http.get(`${API_ROOT}/episode`, {
+        query: { seriesId, ...(seasonNumber === undefined ? {} : { seasonNumber }) },
+      }),
+    listEpisodeFiles: (seriesId) => http.get(`${API_ROOT}/episodefile`, { query: { seriesId } }),
+    // A season search asks every indexer, so Sonarr can take minutes and a repeat would only double the load.
+    searchReleases: (seriesId, seasonNumber) =>
+      http.get(`${API_ROOT}/release`, {
+        query: { seriesId, seasonNumber },
+        timeoutMs: RELEASE_SEARCH_TIMEOUT_MS,
+        retry: { attempts: 1 },
+      }),
+    grabRelease: async (grab) => {
+      await http.post(`${API_ROOT}/release`, grab, {
+        timeoutMs: RELEASE_GRAB_TIMEOUT_MS,
+        retry: { attempts: 1 },
+      });
+    },
+    manualImport: (files) =>
+      http.post(
+        `${API_ROOT}/command`,
+        { name: 'ManualImport', importMode: 'auto', files },
+        { retry: { attempts: 1 } },
+      ),
+    getCommand: (id) => http.get(`${API_ROOT}/command/${id}`),
+    deleteEpisodeFiles: async (episodeFileIds) => {
+      await http.request('DELETE', `${API_ROOT}/episodefile/bulk`, {
+        body: { episodeFileIds },
+        retry: { attempts: 1 },
+        responseType: 'status',
+      });
+    },
+    blocklistHistory: async (historyId) => {
+      await http.post(`${API_ROOT}/history/failed/${historyId}`, undefined, {
+        retry: { attempts: 1 },
+      });
+    },
   };
 }
 

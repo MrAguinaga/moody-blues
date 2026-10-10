@@ -428,3 +428,130 @@ describe('title removal', () => {
     expect(double.titleDeletions()).toHaveLength(1);
   });
 });
+
+describe('series completion', () => {
+  const quality = { quality: { id: 7, name: 'Bluray-1080p' }, revision: { version: 1 } };
+
+  it('reads every page of the missing episodes of monitored series with the series attached', async () => {
+    const { fake, client } = setup();
+    const record = (id: number) => ({ id, seriesId: 5, seasonNumber: 1, episodeNumber: id });
+    fake.on(
+      'GET',
+      '/api/v3/wanted/missing',
+      { body: { page: 1, pageSize: 200, totalRecords: 3, records: [record(1), record(2)] } },
+      { body: { page: 2, pageSize: 200, totalRecords: 3, records: [record(3)] } },
+    );
+
+    const missing = await client.listMissing();
+
+    expect(missing.map((episode) => episode.id)).toEqual([1, 2, 3]);
+    expect(fake.requests[0]?.query).toEqual({
+      page: '1',
+      pageSize: '200',
+      monitored: 'true',
+      includeSeries: 'true',
+    });
+  });
+
+  it('asks for the unknown-series queue items only when requested', async () => {
+    const { fake, client } = setup();
+    fake.on('GET', '/api/v3/queue', {
+      body: { page: 1, pageSize: 200, totalRecords: 0, records: [] },
+    });
+
+    await client.listQueue();
+    await client.listQueue({ includeUnknownSeries: true });
+
+    expect(fake.requests[0]?.query).not.toHaveProperty('includeUnknownSeriesItems');
+    expect(fake.requests[1]?.query.includeUnknownSeriesItems).toBe('true');
+  });
+
+  it('reads the episodes of a series, optionally of one season, and its episode files', async () => {
+    const { fake, client } = setup();
+    fake.on('GET', '/api/v3/episode', { body: [] });
+    fake.on('GET', '/api/v3/episodefile', { body: [] });
+
+    await client.listEpisodes(5);
+    await client.listEpisodes(5, 2);
+    await client.listEpisodeFiles(5);
+
+    expect(fake.requests.map((request) => [request.path, request.query])).toEqual([
+      ['/api/v3/episode', { seriesId: '5' }],
+      ['/api/v3/episode', { seriesId: '5', seasonNumber: '2' }],
+      ['/api/v3/episodefile', { seriesId: '5' }],
+    ]);
+  });
+
+  it('searches the releases of a season once, even when the indexers fail', async () => {
+    const { fake, client } = setup();
+    fake.on('GET', '/api/v3/release', { status: 500, body: { message: 'indexer failed' } });
+
+    await expect(client.searchReleases(5, 1)).rejects.toMatchObject({ status: 500 });
+
+    expect(fake.count('GET', '/api/v3/release')).toBe(1);
+    expect(fake.requests[0]?.query).toEqual({ seriesId: '5', seasonNumber: '1' });
+  });
+
+  it('forces a release onto the episodes with its quality and languages, without retrying', async () => {
+    const { fake, client } = setup();
+    const grab = {
+      guid: 'guid-1',
+      indexerId: 3,
+      quality,
+      languages: [{ id: 8, name: 'Japanese' }],
+      shouldOverride: true as const,
+      seriesId: 5,
+      episodeIds: [11, 12],
+    };
+    fake.on('POST', '/api/v3/release', {
+      status: 500,
+      body: { message: 'Failed to connect to qBittorrent, check your settings.' },
+    });
+
+    await expect(client.grabRelease(grab)).rejects.toMatchObject({ status: 500 });
+
+    expect(fake.count('POST', '/api/v3/release')).toBe(1);
+    expect(fake.requests[0]?.body).toEqual(grab);
+  });
+
+  it('starts a manual import in automatic mode and reads the command back', async () => {
+    const { fake, client } = setup();
+    const file = {
+      path: '/data/downloads/sonarr/Show/Show - 01.mkv',
+      seriesId: 5,
+      episodeIds: [11],
+      quality,
+      languages: [],
+      downloadId: 'ABC',
+    };
+    fake.on('POST', '/api/v3/command', { status: 201, body: { id: 40, status: 'queued' } });
+    fake.on('GET', '/api/v3/command/40', {
+      body: { id: 40, status: 'completed', message: 'Manually imported 1 files' },
+    });
+
+    expect(await client.manualImport([file])).toEqual({ id: 40, status: 'queued' });
+    expect((await client.getCommand(40)).status).toBe('completed');
+
+    expect(fake.requests[0]?.body).toEqual({
+      name: 'ManualImport',
+      importMode: 'auto',
+      files: [file],
+    });
+  });
+
+  it('deletes episode files in bulk and blocklists a history record', async () => {
+    const { fake, client } = setup();
+    fake.on('DELETE', '/api/v3/episodefile/bulk', { body: {} });
+    fake.on('POST', '/api/v3/history/failed/9', { body: {} });
+
+    await client.deleteEpisodeFiles([3, 4]);
+    await client.blocklistHistory(9);
+
+    expect(fake.requests[0]).toMatchObject({
+      method: 'DELETE',
+      path: '/api/v3/episodefile/bulk',
+      body: { episodeFileIds: [3, 4] },
+    });
+    expect(fake.requests[1]).toMatchObject({ method: 'POST', path: '/api/v3/history/failed/9' });
+  });
+});

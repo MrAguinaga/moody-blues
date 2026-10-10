@@ -61,6 +61,12 @@ export interface QueueRecord {
   movieId?: number;
   seriesId?: number;
   episodeId?: number;
+  downloadId?: string;
+  outputPath?: string;
+}
+
+export interface QueueListOptions {
+  includeUnknownSeries?: boolean;
 }
 
 export interface QueuePage {
@@ -84,6 +90,7 @@ export interface TitleResource {
   path?: string;
   tmdbId?: number;
   tvdbId?: number;
+  alternateTitles?: { title: string }[];
 }
 
 export interface HistoryRecord {
@@ -206,4 +213,88 @@ export interface QualityProfileResource {
   minUpgradeFormatScore: number;
   formatItems: QualityProfileFormatItemResource[];
   language?: LanguageResource;
+}
+
+export interface EpisodeResource {
+  id: number;
+  seriesId: number;
+  seasonNumber: number;
+  episodeNumber: number;
+  title?: string;
+  airDateUtc?: string;
+  monitored: boolean;
+  hasFile: boolean;
+  episodeFileId?: number;
+}
+
+export interface MissingEpisodeSeries {
+  id: number;
+  title: string;
+  year?: number;
+  monitored?: boolean;
+  added?: string;
+}
+
+export interface MissingEpisodeResource extends EpisodeResource {
+  series?: MissingEpisodeSeries;
+}
+
+export interface MissingPage {
+  page: number;
+  pageSize: number;
+  totalRecords: number;
+  records: MissingEpisodeResource[];
+}
+
+export interface ReleaseQualityResource {
+  quality: QualityResource;
+  revision?: Record<string, unknown>;
+}
+
+export interface EpisodeFileResource {
+  id: number;
+  seriesId: number;
+  seasonNumber: number;
+  quality?: ReleaseQualityResource;
+}
+
+export interface ReleaseResource {
+  guid: string;
+  indexerId: number;
+  indexer?: string;
+  title: string;
+  quality: ReleaseQualityResource;
+  languages?: LanguageResource[];
+  seeders?: number;
+  size?: number;
+  customFormatScore?: number;
+  fullSeason?: boolean;
+  rejections?: string[];
+}
+
+export interface ReleaseGrab {
+  guid: string;
+  indexerId: number;
+  quality: ReleaseQualityResource;
+  languages: LanguageResource[];
+  shouldOverride: true;
+  seriesId: number;
+  episodeIds: number[];
+}
+
+export interface ManualImportFile {
+  path: string;
+  seriesId: number;
+  episodeIds: number[];
+  quality: ReleaseQualityResource;
+  languages: LanguageResource[];
+  releaseGroup?: string;
+  downloadId?: string;
+}
+
+export interface ArrCommandResource {
+  id: number;
+  name?: string;
+  status: string;
+  message?: string;
 }

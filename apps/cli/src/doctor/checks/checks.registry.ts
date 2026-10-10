@@ -2,6 +2,7 @@ import type { DoctorCheck } from '../doctor.types';
 import { bazarrProvidersCheck } from './bazarr-providers.check';
 import { containersCheck } from './containers.check';
 import { debridMountCheck, decypharrConfigCheck, decypharrLinkCheck } from './decypharr.check';
+import { libraryCheck } from './library.check';
 import { PREFLIGHT_CHECKS } from './preflight.check';
 import {
   createRealDebridAccountCheck,
@@ -34,6 +35,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   realDebridTokenCheck,
   stuckDownloadsCheck,
   reinsertionCheck,
+  libraryCheck,
   bazarrProvidersCheck,
 ];
 

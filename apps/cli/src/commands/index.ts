@@ -14,6 +14,12 @@ export {
   type RemoveSettings,
 } from './remove.command';
 export { createResetCommand, executeReset, type ResetSettings } from './reset.command';
+export {
+  createRetryCommand,
+  executeRetry,
+  parsePositiveInteger,
+  type RetrySettings,
+} from './retry.command';
 export { handleRootAction, type RootActionOptions, startInteractiveWelcome } from './root.command';
 export { createSetupCommand, executeSetup, type SetupSettings } from './setup.command';
 export { createStartCommand, executeStart, type StartSettings } from './start.command';

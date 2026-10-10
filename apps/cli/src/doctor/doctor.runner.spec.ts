@@ -31,7 +31,7 @@ describe('summarize', () => {
 });
 
 describe('the registry of checks', () => {
-  it('lists the 21 checks in the documented order', () => {
+  it('lists the 22 checks in the documented order', () => {
     expect(DOCTOR_CHECKS.map((check) => check.id)).toEqual([
       'docker-daemon',
       'docker-compose',
@@ -53,6 +53,7 @@ describe('the registry of checks', () => {
       'realdebrid-token',
       'stuck-downloads',
       'decypharr-reinsertion',
+      'library',
       'bazarr-providers',
     ]);
   });
@@ -60,7 +61,7 @@ describe('the registry of checks', () => {
   it('adds the Real-Debrid account check after the token check only on request', () => {
     const ids = buildDoctorChecks({ realDebrid: true }).map((check) => check.id);
 
-    expect(ids).toHaveLength(22);
+    expect(ids).toHaveLength(23);
     expect(ids.indexOf('realdebrid-account')).toBe(ids.indexOf('realdebrid-token') + 1);
     expect(buildDoctorChecks().map((check) => check.id)).not.toContain('realdebrid-account');
   });

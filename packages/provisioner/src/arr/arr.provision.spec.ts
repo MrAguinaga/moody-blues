@@ -91,7 +91,8 @@ describe.each(ARR_KINDS)('provisionArr (%s)', (kind) => {
     ]);
     expect(singleton(server, 'mediamanagement')).toMatchObject({
       skipFreeSpaceCheckWhenImporting: true,
-      recycleBin: '',
+      recycleBin: '/data/media/.recycle',
+      recycleBinCleanupDays: 7,
     });
     expect(singleton(server, 'ui').uiLanguage).toBe(3);
     expect(singleton(server, 'indexer').rssSyncInterval).toBe(30);
@@ -156,7 +157,7 @@ describe.each(ARR_KINDS)('provisionArr (%s)', (kind) => {
         .map((request) => `${request.method} ${request.path}`),
     ).toEqual(['PUT /api/v3/config/mediamanagement/1']);
     expect(singleton(server, 'mediamanagement')).toMatchObject({
-      recycleBin: '',
+      recycleBin: '/data/media/.recycle',
       skipFreeSpaceCheckWhenImporting: true,
     });
   });
