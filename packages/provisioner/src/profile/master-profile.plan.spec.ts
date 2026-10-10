@@ -681,6 +681,9 @@ describe.each(ARR_KINDS)('language-first scores (%s)', (kind) => {
     'Serie.S01E01.1080p.BluRay.x264.CHS.Sub-GRP',
     'Serie.S01E01.1080p.BluRay.x264.HardSubITA-GRP',
     'Show.2002.1080p.BluRay.x264.ITA.SUB-GRP',
+    '[GattoNero] Azumanga Daioh - 01 [BD][HEVC 10bit FLAC][subITA]',
+    '[Grupo] Serie - 05v2 [BD][subITA]',
+    'JoJos.Bizarre.Adventure.S06E04.1080p.WEB-DL.H264.subITA-GROUP',
   ];
 
   const CLEAN = [
@@ -700,6 +703,10 @@ describe.each(ARR_KINDS)('language-first scores (%s)', (kind) => {
     'Serie.S01E01.1080p.BluRay.x264-GRP',
     'Sub.Ita.2020.1080p.BluRay.x264-GRP',
     'Subs.German.S01E01.1080p.BluRay.x264-GRP',
+    'JoJo no Kimyou na Bouken - Steel Ball Run - 04 [1080p NF WEB-DL AVC AAC][MultiSub][CE60799F] [Erai-raws]',
+    'JoJos Bizarre Adventure 2012 S06E04 1080p NF WEB-DL AAC2 0 H 264 DUAL-BiOMA',
+    'Spider-Man - Into the Spider-Verse 2018 1080p BluRay x264.ITA-GRP',
+    'Sub-Zero - Ita Chronicles 1080p BluRay x264-GRP',
   ];
 
   it.each(PENALIZED)('penalizes the foreign subtitles mark in %s', (title) => {
@@ -708,6 +715,31 @@ describe.each(ARR_KINDS)('language-first scores (%s)', (kind) => {
 
   it.each(CLEAN)('leaves %s without the foreign subtitles penalty', (title) => {
     expect(matchingFormats(plan.formats, { title })).not.toContain('Subtítulos ajenos');
+  });
+
+  it('detects Latino in anime names that reference the episode by absolute number', () => {
+    expect(
+      matchingFormats(plan.formats, { title: '[Grupo] Serie - 05 [1080p][LATINO]' }),
+    ).toContain('Latino');
+    expect(
+      matchingFormats(plan.formats, {
+        title: '[Grupo] Serie - 05 [BD][LATINO]',
+        languages: ['Spanish (Latino)'],
+      }),
+    ).toContain('Latino');
+  });
+
+  it('does not mark JoJo releases as Latino and ignores hyphens without a number in the title', () => {
+    for (const title of [
+      'JoJos Bizarre Adventure 2012 S06E04 1080p NF WEB-DL AAC2 0 H 264 DUAL-BiOMA',
+      'Latino - Into the Spider-Verse 2018 1080p BluRay x264-GRP',
+    ]) {
+      const names = matchingFormats(plan.formats, { title });
+      expect(names, title).not.toContain('Latino');
+    }
+    expect(
+      matchingFormats(plan.formats, { title: 'Latino - Into the Spider-Verse 2018 1080p BluRay' }),
+    ).toContain('Original');
   });
 
   it('matches 1080p by resolution and not by the 720p or 2160p releases', () => {

@@ -6,8 +6,9 @@ import {
 } from './profile.types';
 
 // Sonarr matches custom format regular expressions against the whole release name, series title
-// included, so a marker only counts after the year, the episode tag or the resolution.
-export const AFTER_TITLE = String.raw`(?<=\b(?:(?:19|20)\d{2}|S\d{1,3}(?:E\d{1,4})?|\d{1,2}x\d{2,4}|(?:480|576|720|1080|2160)[pi])\b.*)`;
+// included, so a marker only counts after the year, the episode tag, the resolution or the absolute
+// episode number of anime (" - 01").
+export const AFTER_TITLE = String.raw`(?<=(?:\b(?:(?:19|20)\d{2}|S\d{1,3}(?:E\d{1,4})?|\d{1,2}x\d{2,4}|(?:480|576|720|1080|2160)[pi])|\s-\s\d{1,4}(?:v\d)?)\b.*)`;
 const NOT_PRECEDED_BY_SUBS = String.raw`(?<!\bsub(?:s|titles?)?[ ._-]?)`;
 const NOT_FOLLOWED_BY_SUBS = String.raw`(?![ ._-]?sub)`;
 
