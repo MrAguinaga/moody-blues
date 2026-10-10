@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import type { HostIdentity } from '../config/config.types';
@@ -6,10 +6,19 @@ import { type MbHomeLayout, SERVICE_NAMES } from './home.paths';
 import { applyOwnership, type OwnershipOptions } from './host-identity.utils';
 
 const DIRECTORY_MODE = 0o775;
+const FILE_MODE = 0o664;
 const RECYCLE_DIRECTORY = '.recycle';
+// Jellyfin skips a library folder that is empty ("inaccessible or empty") and its real-time
+// monitor then never watches it, so every media library folder keeps this hidden empty file.
+export const LIBRARY_MARKER = '.moody-blues';
 
 export interface HostTreeResult {
   created: string[];
+  markers: string[];
+}
+
+export function listLibraryDirectories(layout: MbHomeLayout): string[] {
+  return [join(layout.mediaDir, 'movies'), join(layout.mediaDir, 'tv')];
 }
 
 export function listTreeDirectories(layout: MbHomeLayout): string[] {
@@ -56,6 +65,7 @@ export function ensureHostTree(
   options: Omit<OwnershipOptions, 'identity'> = {},
 ): HostTreeResult {
   const created: string[] = [];
+  const markers: string[] = [];
 
   for (const directory of listTreeDirectories(layout)) {
     if (existsSync(directory)) {
@@ -67,5 +77,15 @@ export function ensureHostTree(
     created.push(directory);
   }
 
-  return { created };
+  for (const directory of listLibraryDirectories(layout)) {
+    const marker = join(directory, LIBRARY_MARKER);
+    if (existsSync(marker)) {
+      continue;
+    }
+    writeFileSync(marker, '', { mode: FILE_MODE });
+    applyOwnership(marker, { ...options, identity });
+    markers.push(marker);
+  }
+
+  return { created, markers };
 }

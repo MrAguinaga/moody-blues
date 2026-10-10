@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createDefaultConfig } from '../config';
 import { createLayout, type MbHomeLayout } from '../home';
-import { ROTATE_CREDENTIALS_FLAG } from '../pipeline/pipeline.flags';
+import { LIBRARY_MARKERS_CREATED_FLAG, ROTATE_CREDENTIALS_FLAG } from '../pipeline/pipeline.flags';
 import type { ContainerRuntime, ProvisionContext } from '../pipeline/pipeline.types';
 import {
   createFakeJellyfin,
@@ -165,6 +165,20 @@ describe('provisionJellyfin', () => {
       'POST /Library/VirtualFolders',
       'POST /Library/Refresh',
     ]);
+  });
+
+  it('scans existing libraries when the host step just created a marker', async () => {
+    const server = setup();
+    await run(server);
+    const seen = server.requests.length;
+
+    const flags = new Map([[LIBRARY_MARKERS_CREATED_FLAG, true]]);
+    const outcome = await run(server, createContext({ flags }));
+
+    expect(outcome).toEqual({ status: 'changed', detail: 'started the first library scan' });
+    expect(routes(server, seen).filter((route) => route === 'POST /Library/Refresh')).toHaveLength(
+      1,
+    );
   });
 
   it('scans once when only one library is missing', async () => {

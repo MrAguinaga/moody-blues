@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -43,7 +43,37 @@ describe('ensureHostTree', () => {
   it('is idempotent', () => {
     const layout = createLayout(join(sandbox, 'home'));
     ensureHostTree(layout, identity, { runAsRoot: false });
-    expect(ensureHostTree(layout, identity, { runAsRoot: false }).created).toEqual([]);
+    const second = ensureHostTree(layout, identity, { runAsRoot: false });
+    expect(second.created).toEqual([]);
+    expect(second.markers).toEqual([]);
+  });
+
+  it('leaves an empty hidden marker in each media library folder', () => {
+    const layout = createLayout(join(sandbox, 'home'));
+    const { markers } = ensureHostTree(layout, identity, { runAsRoot: false });
+
+    const expected = ['movies', 'tv'].map((name) => join(layout.mediaDir, name, '.moody-blues'));
+    expect(markers).toEqual(expected);
+    for (const marker of expected) {
+      expect(statSync(marker).isFile()).toBe(true);
+      expect(statSync(marker).size).toBe(0);
+    }
+  });
+
+  it('adds the markers to an existing install without rewriting existing ones', () => {
+    const layout = createLayout(join(sandbox, 'home'));
+    ensureHostTree(layout, identity, { runAsRoot: false });
+    const movies = join(layout.mediaDir, 'movies', '.moody-blues');
+    const tv = join(layout.mediaDir, 'tv', '.moody-blues');
+    rmSync(tv);
+    writeFileSync(movies, 'keep');
+
+    const { created, markers } = ensureHostTree(layout, identity, { runAsRoot: false });
+
+    expect(created).toEqual([]);
+    expect(markers).toEqual([tv]);
+    expect(existsSync(tv)).toBe(true);
+    expect(statSync(movies).size).toBe(4);
   });
 
   it('only creates what is missing', () => {
@@ -59,8 +89,9 @@ describe('ensureHostTree', () => {
     const chown = vi.fn();
     const layout = createLayout(join(sandbox, 'a'));
     const { created } = ensureHostTree(layout, identity, { runAsRoot: true, chown });
-    expect(chown).toHaveBeenCalledTimes(created.length);
+    expect(chown).toHaveBeenCalledTimes(created.length + 2);
     expect(chown).toHaveBeenCalledWith(layout.root, 1000, 1000);
+    expect(chown).toHaveBeenCalledWith(join(layout.mediaDir, 'tv', '.moody-blues'), 1000, 1000);
 
     const skipped = vi.fn();
     ensureHostTree(createLayout(join(sandbox, 'b')), identity, {

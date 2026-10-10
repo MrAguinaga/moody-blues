@@ -1,5 +1,5 @@
 import { HttpStatusError } from '../http/http.errors';
-import { ROTATE_CREDENTIALS_FLAG } from '../pipeline/pipeline.flags';
+import { LIBRARY_MARKERS_CREATED_FLAG, ROTATE_CREDENTIALS_FLAG } from '../pipeline/pipeline.flags';
 import type { ProvisionContext, StepOutcome } from '../pipeline/pipeline.types';
 import { ensureJellyfinAccess, isRejectedCredential, RESET_HINT } from './jellyfin.access';
 import type { JellyfinClient, JellyfinReadyOptions } from './jellyfin.client';
@@ -177,8 +177,10 @@ export async function provisionJellyfin(
   }
 
   // A library that was never scanned is invisible to the real-time monitor and to the
-  // Library/Media/Updated notices of Sonarr and Radarr, so the first scan starts it.
-  if (createdLibraries > 0) {
+  // Library/Media/Updated notices of Sonarr and Radarr, so the first scan starts it. Jellyfin
+  // also skips empty folders, so a scan is needed again when the host step just placed the
+  // marker file in a folder of a library that already existed.
+  if (createdLibraries > 0 || ctx.flags.get(LIBRARY_MARKERS_CREATED_FLAG) === true) {
     progress('Starting the first library scan');
     await client.refreshLibrary();
     changes.push('started the first library scan');
