@@ -59,7 +59,14 @@ const REPAIR_HEALTH_PATH = '/api/repair/health';
 const UPDATE_AUTH_PATH = '/api/update-auth';
 const BROWSE_TORRENTS_PATH = '/api/browse/torrents';
 const WIZARD_PATTERN = /setup wizard/i;
-const LIST_WRAPPER_KEYS: readonly string[] = ['entries', 'data', 'items', 'health', 'arrs'];
+const LIST_WRAPPER_KEYS: readonly string[] = [
+  'entries',
+  'data',
+  'items',
+  'health',
+  'arrs',
+  'torrents',
+];
 
 function isRecord(value: unknown): value is Raw {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -162,6 +169,10 @@ export function parseRepairEntries(raw: unknown): RepairHealthEntry[] {
   }));
 }
 
+export function parseTorrentHashes(raw: unknown): string[] {
+  return listOf(raw).flatMap((torrent) => text(torrent.info_hash)?.toLowerCase() ?? []);
+}
+
 export function parseVersion(raw: unknown): VersionInfo {
   const version = text(at(raw, 'version'));
   if (version === undefined) {
@@ -250,6 +261,7 @@ export function createDecypharrClient(options: DecypharrClientOptions): Decyphar
       }
     },
     // Decypharr removes the torrent from the debrid account too, so a retried request could only hide the first failure.
+    // An infohash it does not know answers 500 "Failed to delete entry" rather than 404, so the list tells a missing torrent from a real failure.
     deleteTorrent: async (infohash) => {
       try {
         await guarded(() =>
@@ -261,10 +273,17 @@ export function createDecypharrClient(options: DecypharrClientOptions): Decyphar
         );
         return true;
       } catch (error) {
-        if (error instanceof HttpStatusError && error.status === 404) {
+        if (!(error instanceof HttpStatusError)) {
+          throw error;
+        }
+        if (error.status === 404) {
           return false;
         }
-        throw error;
+        const listed = await authed(BROWSE_TORRENTS_PATH).then(parseTorrentHashes, () => undefined);
+        if (listed === undefined || listed.includes(infohash.toLowerCase())) {
+          throw error;
+        }
+        return false;
       }
     },
     listBrokenEntries: async () =>

@@ -9,6 +9,7 @@ import {
   parseArrs,
   parseConfigView,
   parseRepairEntries,
+  parseTorrentHashes,
 } from './decypharr.client';
 
 const TOKEN = 'decypharr-secret-token';
@@ -273,11 +274,56 @@ describe('createDecypharrClient deleteTorrent', () => {
     expect(server.count('DELETE')).toBe(1);
   });
 
-  it('does not retry a server error', async () => {
-    const { server, client } = setup({ deleteStatus: 500 });
+  it('answers false when Decypharr fails the delete with a 500 for an unknown infohash', async () => {
+    const { server, client } = setup({ torrents: ['d'.repeat(40)] });
+
+    await expect(client.deleteTorrent(HASH)).resolves.toBe(false);
+
+    expect(server.count('DELETE')).toBe(1);
+    expect(server.count('GET', '/api/browse/torrents')).toBe(1);
+    expect(server.requests[1]?.headers.authorization).toBe(`Bearer ${TOKEN}`);
+    expect(server.state.torrents).toEqual(['d'.repeat(40)]);
+  });
+
+  it('keeps a 404 as absent without consulting the list', async () => {
+    const routes = createFakeFetch();
+    const client = createDecypharrClient({
+      baseUrl: 'http://127.0.0.1:8282',
+      apiToken: TOKEN,
+      fetch: routes.fetch,
+      sleep: noSleep,
+    });
+    routes.on('DELETE', `/api/browse/torrents/${HASH}`, { status: 404 });
+
+    await expect(client.deleteTorrent(HASH)).resolves.toBe(false);
+    expect(routes.requests).toHaveLength(1);
+  });
+
+  it('throws the original error when the torrent is still listed, without retrying the delete', async () => {
+    const { server, client } = setup({ torrents: [HASH.toUpperCase()], deleteStatus: 500 });
 
     await expect(client.deleteTorrent(HASH)).rejects.toMatchObject({ status: 500 });
     expect(server.count('DELETE')).toBe(1);
+  });
+
+  it('throws the original error when the list cannot be read either', async () => {
+    const routes = createFakeFetch();
+    const client = createDecypharrClient({
+      baseUrl: 'http://127.0.0.1:8282',
+      apiToken: TOKEN,
+      fetch: routes.fetch,
+      sleep: noSleep,
+    });
+    routes.on('DELETE', `/api/browse/torrents/${HASH}`, {
+      status: 500,
+      text: 'Failed to delete entry',
+    });
+    routes.on('GET', '/api/browse/torrents', { status: 500 });
+
+    await expect(client.deleteTorrent(HASH)).rejects.toMatchObject({
+      status: 500,
+      bodySnippet: 'Failed to delete entry',
+    });
   });
 
   it('encodes the infohash as a single path segment', async () => {
@@ -291,5 +337,13 @@ describe('createDecypharrClient deleteTorrent', () => {
     routes.on('DELETE', '/api/browse/torrents/a%2Fb', { status: 200 });
 
     await expect(client.deleteTorrent('a/b')).resolves.toBe(true);
+  });
+});
+
+describe('parseTorrentHashes', () => {
+  it('lowercases the info_hash of every entry and ignores noise', () => {
+    expect(parseTorrentHashes([{ info_hash: 'ABC' }, { name: 'x' }, 'noise'])).toEqual(['abc']);
+    expect(parseTorrentHashes({ torrents: [{ info_hash: 'DEF' }] })).toEqual(['def']);
+    expect(parseTorrentHashes(null)).toEqual([]);
   });
 });

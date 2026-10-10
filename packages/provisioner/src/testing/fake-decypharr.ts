@@ -139,6 +139,12 @@ export function createFakeDecypharr(options: FakeDecypharrOptions): FakeDecyphar
       const entries = request.query.status === 'broken' ? state.brokenEntries : [];
       return json(200, options.repairHealth ?? entries);
     }
+    if (method === 'GET' && path === '/api/browse/torrents') {
+      return json(
+        200,
+        state.torrents.map((hash) => ({ info_hash: hash })),
+      );
+    }
     const torrentMatch = /^\/api\/browse\/torrents\/([^/]+)$/.exec(path);
     if (method === 'DELETE' && torrentMatch) {
       if (options.deleteStatus !== undefined) {
@@ -146,7 +152,7 @@ export function createFakeDecypharr(options: FakeDecypharrOptions): FakeDecyphar
       }
       const hash = decodeURIComponent(torrentMatch[1] as string).toLowerCase();
       if (!state.torrents.includes(hash)) {
-        return json(404, { error: 'torrent not found' });
+        return new Response('Failed to delete entry', { status: 500 });
       }
       state.torrents = state.torrents.filter((known) => known !== hash);
       return json(200, { status: 'deleted' });
