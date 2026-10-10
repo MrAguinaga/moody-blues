@@ -54,7 +54,8 @@ const NOTHING_TO_IMPORT =
   'Every episode already has a file of equal or better quality than this release.';
 const NO_RECYCLE_BIN =
   'Sonarr has no recycle bin, so replaced files would be deleted. Run "moody-blues setup" again to provision it.';
-const SEARCH_NOTICE = 'This asks every indexer and can take a few minutes.';
+const SEARCH_NOTICE =
+  'This asks every indexer and can take several minutes (up to 15) if the indexers are slow.';
 
 export interface RetrySettings {
   query?: string;

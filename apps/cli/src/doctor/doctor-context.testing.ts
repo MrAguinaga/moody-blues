@@ -105,12 +105,18 @@ export function createStubArr(
   stub.on('GET', '/api/v3/queue', (request) => {
     const page = Number(request.query.page ?? 1);
     const pageSize = Number(request.query.pageSize ?? 10);
+    const includeUnknown =
+      request.query.includeUnknownSeriesItems === 'true' ||
+      request.query.includeUnknownMovieItems === 'true';
+    const visible = stub.queue.filter(
+      (record) => includeUnknown || !('seriesId' in record && record.seriesId == null),
+    );
     return {
       body: {
         page,
         pageSize,
-        totalRecords: stub.queue.length,
-        records: stub.queue.slice((page - 1) * pageSize, page * pageSize),
+        totalRecords: visible.length,
+        records: visible.slice((page - 1) * pageSize, page * pageSize),
       },
     };
   });

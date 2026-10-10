@@ -1,4 +1,5 @@
 import { createHttpClient } from '../http/http.client';
+import { HttpTimeoutError } from '../http/http.errors';
 import type { HttpClient, HttpClientOptions } from '../http/http.types';
 import { valuesEqual } from '../http/provider-fields';
 import { ensureServarrAdminUser, type ServarrAdminCredentials } from '../servarr/servarr-host';
@@ -37,15 +38,22 @@ const API_ROOT = '/api/v3';
 const QUEUE_PAGE_SIZE = 200;
 const HISTORY_PAGE_SIZE = 200;
 const MISSING_PAGE_SIZE = 200;
-const RELEASE_SEARCH_TIMEOUT_MS = 300_000;
+const RELEASE_SEARCH_TIMEOUT_MINUTES = 15;
+const RELEASE_SEARCH_TIMEOUT_MS = RELEASE_SEARCH_TIMEOUT_MINUTES * 60_000;
 const RELEASE_GRAB_TIMEOUT_MS = 60_000;
 
 const TITLE_RESOURCES = {
-  radarr: { collection: 'movie', historyQuery: 'movieId', exclusionQuery: 'addImportExclusion' },
+  radarr: {
+    collection: 'movie',
+    historyQuery: 'movieId',
+    exclusionQuery: 'addImportExclusion',
+    unknownQueueQuery: 'includeUnknownMovieItems',
+  },
   sonarr: {
     collection: 'series',
     historyQuery: 'seriesId',
     exclusionQuery: 'addImportListExclusion',
+    unknownQueueQuery: 'includeUnknownSeriesItems',
   },
 } as const;
 
@@ -181,7 +189,7 @@ export function createArrClient(options: ArrClientOptions): ArrClient {
           query: {
             page,
             pageSize: QUEUE_PAGE_SIZE,
-            ...(listing.includeUnknownSeries ? { includeUnknownSeriesItems: true } : {}),
+            ...(listing.includeUnknownSeries ? { [titles.unknownQueueQuery]: true } : {}),
           },
         });
         records.push(...result.records);
@@ -238,12 +246,23 @@ export function createArrClient(options: ArrClientOptions): ArrClient {
       }),
     listEpisodeFiles: (seriesId) => http.get(`${API_ROOT}/episodefile`, { query: { seriesId } }),
     // A season search asks every indexer, so Sonarr can take minutes and a repeat would only double the load.
-    searchReleases: (seriesId, seasonNumber) =>
-      http.get(`${API_ROOT}/release`, {
-        query: { seriesId, seasonNumber },
-        timeoutMs: RELEASE_SEARCH_TIMEOUT_MS,
-        retry: { attempts: 1 },
-      }),
+    searchReleases: async (seriesId, seasonNumber) => {
+      try {
+        return await http.get<ReleaseResource[]>(`${API_ROOT}/release`, {
+          query: { seriesId, seasonNumber },
+          timeoutMs: RELEASE_SEARCH_TIMEOUT_MS,
+          retry: { attempts: 1 },
+        });
+      } catch (error) {
+        if (error instanceof HttpTimeoutError) {
+          throw new Error(
+            `The release search timed out after ${RELEASE_SEARCH_TIMEOUT_MINUTES} minutes; indexers may be rate limited, try again later.`,
+            { cause: error },
+          );
+        }
+        throw error;
+      }
+    },
     grabRelease: async (grab) => {
       await http.post(`${API_ROOT}/release`, grab, {
         timeoutMs: RELEASE_GRAB_TIMEOUT_MS,

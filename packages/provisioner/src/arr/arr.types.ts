@@ -58,14 +58,15 @@ export interface QueueRecord {
   statusMessages?: QueueStatusMessage[];
   errorMessage?: string;
   added?: string;
-  movieId?: number;
-  seriesId?: number;
+  movieId?: number | null;
+  seriesId?: number | null;
   episodeId?: number;
   downloadId?: string;
   outputPath?: string;
 }
 
 export interface QueueListOptions {
+  /** Also lists the items Sonarr or Radarr could not match to a series or movie. */
   includeUnknownSeries?: boolean;
 }
 

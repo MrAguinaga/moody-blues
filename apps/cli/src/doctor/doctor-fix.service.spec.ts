@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { stuckDownloadsCheck } from './checks/stuck-downloads.check';
 import type { DoctorResult, StuckItem } from './doctor.types';
-import { createStubArr, createTestContext, stubQueueDelete } from './doctor-context.testing';
+import {
+  createStubArr,
+  createTestContext,
+  MINUTE_MS,
+  stubQueueDelete,
+  TEST_NOW,
+} from './doctor-context.testing';
 import { applyFixes, buildFixPlan, describeFixPlan, unappliedOutcome } from './doctor-fix.service';
 
 const item = (queueId: number, app: StuckItem['app'] = 'radarr'): StuckItem => ({
@@ -104,6 +111,33 @@ describe('applyFixes', () => {
       { removeFromClient: 'true', blocklist: 'true' },
     ]);
     expect(sonarr.requests).toEqual([]);
+  });
+
+  it('removes an item without a series found by the check', async () => {
+    const sonarr = createStubArr('4.0', [
+      {
+        id: 5,
+        title: 'Some.Unknown.Show.S01.1080p-GRP',
+        seriesId: null,
+        trackedDownloadState: 'importBlocked',
+        added: new Date(TEST_NOW - 34 * MINUTE_MS).toISOString(),
+      },
+    ]);
+    stubQueueDelete(sonarr, 5);
+    const { ctx } = createTestContext({ stubs: { sonarr } });
+    const scan = await stuckDownloadsCheck.run(ctx);
+    const plan = buildFixPlan([{ id: 'stuck-downloads', name: 'Stuck downloads', ...scan }]);
+
+    const outcome = await applyFixes(plan!, {
+      clients: ctx.clients,
+      reinsertionsBefore: 0,
+      settle: async () => undefined,
+      countReinsertions: async () => 0,
+      redact: ctx.redact,
+    });
+
+    expect(outcome.items).toEqual(['sonarr #5']);
+    expect(sonarr.queue).toEqual([]);
   });
 
   it('routes each item to its own app', async () => {

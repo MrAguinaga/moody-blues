@@ -130,6 +130,33 @@ describe('stuckDownloadsCheck', () => {
     ]);
   });
 
+  it('detects an item Sonarr could not match to a series', async () => {
+    const { ctx } = createTestContext({
+      stubs: {
+        sonarr: createStubArr('4.0', [
+          record({
+            id: 5,
+            seriesId: null,
+            title: 'Some.Unknown.Show.S01.1080p-GRP',
+            trackedDownloadState: 'importBlocked',
+            trackedDownloadStatus: 'warning',
+            statusMessages: [
+              { messages: ['Unable to parse download, automatic import is not possible.'] },
+            ],
+          }),
+        ]),
+      },
+    });
+
+    const result = await stuckDownloadsCheck.run(ctx);
+
+    expect(result.status).toBe('error');
+    expect(result.details?.[0]).toContain(
+      'sonarr #5 "Some.Unknown.Show.S01.1080p-GRP" importBlocked',
+    );
+    expect(result.stuckItems).toEqual([expect.objectContaining({ app: 'sonarr', queueId: 5 })]);
+  });
+
   it('reports nothing for the same item with 3 minutes of age', async () => {
     const added = new Date(TEST_NOW - 3 * MINUTE_MS).toISOString();
     const { ctx } = createTestContext({

@@ -466,6 +466,25 @@ describe('series completion', () => {
     expect(fake.requests[1]?.query.includeUnknownSeriesItems).toBe('true');
   });
 
+  it('uses the unknown-movie parameter for Radarr', async () => {
+    const fake = createFakeFetch();
+    const client = createArrClient({
+      kind: 'radarr',
+      baseUrl: 'http://127.0.0.1:7878',
+      apiKey: API_KEY,
+      fetch: fake.fetch,
+      sleep: async () => undefined,
+    });
+    fake.on('GET', '/api/v3/queue', {
+      body: { page: 1, pageSize: 200, totalRecords: 0, records: [] },
+    });
+
+    await client.listQueue({ includeUnknownSeries: true });
+
+    expect(fake.requests[0]?.query.includeUnknownMovieItems).toBe('true');
+    expect(fake.requests[0]?.query).not.toHaveProperty('includeUnknownSeriesItems');
+  });
+
   it('reads the episodes of a series, optionally of one season, and its episode files', async () => {
     const { fake, client } = setup();
     fake.on('GET', '/api/v3/episode', { body: [] });

@@ -90,7 +90,7 @@ export async function scanStuckDownloads(ctx: DoctorContext): Promise<StuckScan 
     }
     running += 1;
     try {
-      const records = await ctx.clients[app].listQueue();
+      const records = await ctx.clients[app].listQueue({ includeUnknownSeries: true });
       const evaluation = evaluateStuck(records, {
         now: ctx.now(),
         stuckAfterMs: ctx.stuckAfterMs,
