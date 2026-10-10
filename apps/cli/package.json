@@ -1,6 +1,6 @@
 {
   "name": "@moody-blues/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Interactive CLI for Moody Blues autonomous media stack",
   "type": "module",
   "bin": {
