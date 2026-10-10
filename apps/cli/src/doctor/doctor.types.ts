@@ -38,6 +38,7 @@ export const DOCTOR_CHECK_IDS = [
   'decypharr-reinsertion',
   'library',
   'bazarr-providers',
+  'jellyfin-policy',
 ] as const;
 
 export type DoctorCheckId = (typeof DOCTOR_CHECK_IDS)[number];

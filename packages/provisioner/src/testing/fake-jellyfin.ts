@@ -58,6 +58,7 @@ export interface FakeJellyfinState {
   failedLogins: number;
   passwordChanges: string[];
   refreshes: number;
+  scannedLibraries: Set<string>;
 }
 
 export interface FakeJellyfin {
@@ -198,6 +199,7 @@ export function createFakeJellyfin(options: FakeJellyfinOptions = {}): FakeJelly
     failedLogins: 0,
     passwordChanges: [],
     refreshes: 0,
+    scannedLibraries: new Set(),
   };
   const requests: FakeRequest[] = [];
   const counters = {
@@ -429,6 +431,9 @@ export function createFakeJellyfin(options: FakeJellyfinOptions = {}): FakeJelly
     }
     if (key === 'POST /Library/Refresh') {
       state.refreshes += 1;
+      for (const library of state.libraries) {
+        state.scannedLibraries.add(library.ItemId);
+      }
       return reply(204);
     }
     if (path.startsWith('/Library/VirtualFolders')) {

@@ -99,8 +99,11 @@ describe('provisionJellyfin', () => {
       'completed the setup wizard, created the API key, stored the API key in the environment file, ' +
         'server settings ServerName, UICulture, PreferredMetadataLanguage, MetadataCountryCode, ' +
         'encoding safeguards TranscodingTempPath, EnableSegmentDeletion, EnableThrottling, SegmentKeepSeconds, ' +
-        'created library Películas, created library Series',
+        'created library Películas, created library Series, started the first library scan',
     );
+    expect(server.state.refreshes).toBe(1);
+    expect(server.count('POST', '/Library/Refresh')).toBe(1);
+    expect(server.state.scannedLibraries.size).toBe(2);
     expect(server.state.wizardCompleted).toBe(true);
     expect(server.canLogin(ADMIN.username, ADMIN.password)).toBe(true);
     expect(server.canLogin(ADMIN.username, 'wrong')).toBe(false);
@@ -148,6 +151,48 @@ describe('provisionJellyfin', () => {
     expect(envText()).toBe(envBefore);
     expect(server.state.libraries).toHaveLength(2);
     expect(server.state.apiKeys).toHaveLength(1);
+    expect(server.state.refreshes).toBe(1);
+  });
+
+  it('starts the first scan after the libraries are created, never before', async () => {
+    const server = setup();
+
+    await run(server);
+
+    const posts = routes(server).filter((route) => route.startsWith('POST /Library'));
+    expect(posts).toEqual([
+      'POST /Library/VirtualFolders',
+      'POST /Library/VirtualFolders',
+      'POST /Library/Refresh',
+    ]);
+  });
+
+  it('scans once when only one library is missing', async () => {
+    const server = setup();
+    await run(server);
+    server.state.libraries.pop();
+    const seen = server.requests.length;
+
+    const outcome = await run(server);
+
+    expect(outcome).toEqual({
+      status: 'changed',
+      detail: 'created library Series, started the first library scan',
+    });
+    expect(server.state.refreshes).toBe(2);
+    expect(routes(server, seen).filter((route) => route === 'POST /Library/Refresh')).toHaveLength(
+      1,
+    );
+  });
+
+  it('does not scan when the libraries only needed a correction', async () => {
+    const server = setup();
+    await run(server);
+    server.state.libraries[0]!.LibraryOptions.EnableTrickplayImageExtraction = true;
+
+    await run(server);
+
+    expect(server.state.refreshes).toBe(1);
   });
 
   it('never duplicates a library across runs', async () => {

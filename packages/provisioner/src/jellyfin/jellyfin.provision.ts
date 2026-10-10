@@ -160,8 +160,12 @@ export async function provisionJellyfin(
 
   progress('Checking libraries');
   const folders = await client.listLibraries();
+  let createdLibraries = 0;
   for (const spec of JELLYFIN_LIBRARIES) {
     const change = await ensureLibrary(client, folders, spec, locale);
+    if (change.result === 'created') {
+      createdLibraries += 1;
+    }
     if (change.result !== 'unchanged') {
       changes.push(
         `${change.result} library ${change.name}${change.drifted ? ` (${change.drifted.join(', ')})` : ''}`,
@@ -170,6 +174,14 @@ export async function provisionJellyfin(
     if (change.note) {
       notes.push(change.note);
     }
+  }
+
+  // A library that was never scanned is invisible to the real-time monitor and to the
+  // Library/Media/Updated notices of Sonarr and Radarr, so the first scan starts it.
+  if (createdLibraries > 0) {
+    progress('Starting the first library scan');
+    await client.refreshLibrary();
+    changes.push('started the first library scan');
   }
 
   progress('Verifying the published URL');

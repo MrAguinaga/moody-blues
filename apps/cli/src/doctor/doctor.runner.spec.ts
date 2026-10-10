@@ -55,13 +55,14 @@ describe('the registry of checks', () => {
       'decypharr-reinsertion',
       'library',
       'bazarr-providers',
+      'jellyfin-policy',
     ]);
   });
 
   it('adds the Real-Debrid account check after the token check only on request', () => {
     const ids = buildDoctorChecks({ realDebrid: true }).map((check) => check.id);
 
-    expect(ids).toHaveLength(23);
+    expect(ids).toHaveLength(24);
     expect(ids.indexOf('realdebrid-account')).toBe(ids.indexOf('realdebrid-token') + 1);
     expect(buildDoctorChecks().map((check) => check.id)).not.toContain('realdebrid-account');
   });

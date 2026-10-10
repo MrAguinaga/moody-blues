@@ -2,6 +2,7 @@ import type { DoctorCheck } from '../doctor.types';
 import { bazarrProvidersCheck } from './bazarr-providers.check';
 import { containersCheck } from './containers.check';
 import { debridMountCheck, decypharrConfigCheck, decypharrLinkCheck } from './decypharr.check';
+import { jellyfinPolicyCheck } from './jellyfin-policy.check';
 import { libraryCheck } from './library.check';
 import { PREFLIGHT_CHECKS } from './preflight.check';
 import {
@@ -37,6 +38,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   reinsertionCheck,
   libraryCheck,
   bazarrProvidersCheck,
+  jellyfinPolicyCheck,
 ];
 
 export const REMEDIATION_CHECKS: readonly DoctorCheck[] = [stuckDownloadsCheck, reinsertionCheck];

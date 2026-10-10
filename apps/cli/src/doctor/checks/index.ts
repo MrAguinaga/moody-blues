@@ -6,5 +6,6 @@ export {
   REMEDIATION_CHECKS,
 } from './checks.registry';
 export { evaluateContainers } from './containers.check';
+export { evaluatePolicies, jellyfinPolicyCheck } from './jellyfin-policy.check';
 export { evaluateLibrary, type IncompleteSeries, libraryCheck } from './library.check';
 export { evaluateStuck, scanStuckDownloads, type StuckScan } from './stuck-downloads.check';
