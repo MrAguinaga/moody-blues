@@ -14,6 +14,7 @@ export {
   type StorageSettings,
   TRANSCODING_MODES,
   type TranscodingMode,
+  type UpdateCheckCache,
 } from './config.types';
 export {
   CONFIG_KEYS,

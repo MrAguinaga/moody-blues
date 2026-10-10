@@ -52,4 +52,25 @@ describe('parseConfig', () => {
       expect(result.error.join('\n')).toContain('schemaVersion');
     }
   });
+
+  it('keeps the optional update check cache and rejects a malformed one', () => {
+    const cache = {
+      checkedAt: '2026-10-10T12:00:00.000Z',
+      tag: 'v0.2.0',
+      url: 'https://github.com/MrAguinaga/moody-blues/releases/tag/v0.2.0',
+      body: '- Better updates',
+    };
+
+    const kept = parseConfig({ ...createDefaultConfig(), updateCheck: cache });
+    expect(kept).toMatchObject({ ok: true, value: { updateCheck: cache } });
+
+    expect(parseConfig(createDefaultConfig())).toMatchObject({ ok: true });
+    expect(parseConfig({ ...createDefaultConfig(), updateCheck: { ...cache, tag: '' } }).ok).toBe(
+      false,
+    );
+    expect(
+      parseConfig({ ...createDefaultConfig(), updateCheck: { ...cache, checkedAt: 'yesterday' } })
+        .ok,
+    ).toBe(false);
+  });
 });

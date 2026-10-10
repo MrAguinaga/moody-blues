@@ -39,6 +39,13 @@ const hostSchema = z.object({
   pgid: z.number().int().nonnegative(),
 });
 
+const updateCheckSchema = z.object({
+  checkedAt: z.iso.datetime(),
+  tag: nonEmpty,
+  url: nonEmpty,
+  body: z.string(),
+});
+
 export const configSchema = z
   .object({
     schemaVersion: z.literal(CONFIG_SCHEMA_VERSION, {
@@ -54,6 +61,7 @@ export const configSchema = z
     timezone: nonEmpty,
     host: hostSchema,
     provisionedVersion: nonEmpty,
+    updateCheck: updateCheckSchema.optional(),
   })
   .superRefine((config, ctx) => {
     if (config.mode === 'local' && config.domain !== 'localhost') {

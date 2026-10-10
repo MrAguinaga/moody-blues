@@ -26,3 +26,4 @@ export { createStartCommand, executeStart, type StartSettings } from './start.co
 export { createStatusCommand, executeStatus, type StatusSettings } from './status.command';
 export { createStopCommand, executeStop, type StopSettings } from './stop.command';
 export { createTunnelCommand, executeTunnel, type TunnelSettings } from './tunnel.command';
+export { createUpdateCommand, executeUpdate, type UpdateSettings } from './update.command';

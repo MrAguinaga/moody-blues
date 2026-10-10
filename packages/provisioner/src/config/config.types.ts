@@ -36,6 +36,13 @@ export interface HostIdentity {
   pgid: number;
 }
 
+export interface UpdateCheckCache {
+  checkedAt: string;
+  tag: string;
+  url: string;
+  body: string;
+}
+
 export interface MoodyBluesConfig {
   schemaVersion: typeof CONFIG_SCHEMA_VERSION;
   mode: DeployMode;
@@ -48,4 +55,5 @@ export interface MoodyBluesConfig {
   timezone: string;
   host: HostIdentity;
   provisionedVersion: string;
+  updateCheck?: UpdateCheckCache;
 }

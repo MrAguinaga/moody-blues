@@ -14,6 +14,7 @@ import {
   createStatusCommand,
   createStopCommand,
   createTunnelCommand,
+  createUpdateCommand,
   handleRootAction,
 } from './commands';
 
@@ -42,6 +43,7 @@ export function buildCliProgram(): Command {
   program.addCommand(createConfigCommand(CLI_VERSION));
   program.addCommand(createRemoveCommand(CLI_VERSION));
   program.addCommand(createRetryCommand(CLI_VERSION));
+  program.addCommand(createUpdateCommand(CLI_VERSION));
 
   program.action(async () => {
     const globalOpts = program.opts();
